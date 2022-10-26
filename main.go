@@ -16,6 +16,17 @@ type PR struct {
 	Title  string `json:"title"`
 }
 
+type Option struct {
+	Id   string
+	Name string
+}
+
+type SelectField struct {
+	Id      string
+	Name    string
+	Options []Option
+}
+
 func currentPullRequestToProject(gqlclient api.GQLClient, projectId string) (itemId string) {
 	args := []string{"pr", "view", "--json", "id,number,title"}
 	stdOut, _, err := gh.Exec(args...)
@@ -123,14 +134,7 @@ func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTyp
 	return fieldTypes
 }
 
-func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields []struct {
-	Id      string
-	Name    string
-	Options struct {
-		Id   string
-		Name string
-	}
-}) {
+func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields []SelectField) {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
@@ -170,14 +174,23 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 		log.Fatal(err)
 	}
 
-	var fieldOptions []interface{}
+	var fieldOptions []SelectField
 	for _, node := range query.Node.ProjectV2.Fields.Nodes {
 		if node.ProjectV2SingleSelectField.Id != "" {
 			if len(node.ProjectV2SingleSelectField.Options) > 0 {
-				field := map[string]interface{}{
-					"Id":      node.ProjectV2SingleSelectField.Id,
-					"Name":    node.ProjectV2SingleSelectField.Name,
-					"Options": node.ProjectV2SingleSelectField.Options,
+				var options []Option
+				for _, opt := range node.ProjectV2SingleSelectField.Options {
+					option := Option{
+						Id:   opt.Id,
+						Name: opt.Name,
+					}
+					options = append(options, option)
+				}
+
+				field := SelectField{
+					Id:      node.ProjectV2SingleSelectField.Id,
+					Name:    node.ProjectV2SingleSelectField.Name,
+					Options: options,
 				}
 				fieldOptions = append(fieldOptions, field)
 			}
@@ -186,42 +199,30 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 			if len(node.ProjectV2IterationField.Configuration.Iterations) > 0 {
 				iterations := node.ProjectV2IterationField.Configuration.Iterations
 
-				var iterationOptions []interface{}
+				var iterationOptions []Option
 				for _, itr := range iterations {
-					opt := map[string]interface{}{
-						"Id":   itr.Id,
-						"Name": itr.StartDate,
+					opt := Option{
+						Id:   itr.Id,
+						Name: itr.StartDate,
 					}
 					iterationOptions = append(iterationOptions, opt)
 				}
 
-				field := map[string]interface{}{
-					"Id":      node.ProjectV2SingleSelectField.Id,
-					"Name":    node.ProjectV2IterationField.Name,
-					"Options": iterationOptions,
+				field := SelectField{
+					Id:      node.ProjectV2SingleSelectField.Id,
+					Name:    node.ProjectV2IterationField.Name,
+					Options: iterationOptions,
 				}
 				fieldOptions = append(fieldOptions, field)
 			}
 		}
-		fmt.Println("---------------------------------")
-		fmt.Printf("%+v\n", node)
 	}
 
-	fmt.Println("---------------------------------")
-	fmt.Printf("%+v\n", fieldOptions)
-	fmt.Println("---------------------------------")
-	//fmt.Printf("%+v\n", query.Node.ProjectV2.Fields.Nodes)
-	//nodes := len(query.Node.ProjectV2.Fields.Nodes)
-	//fields = make([]struct {
-	//	Id       string
-	//	Name     string
-	//	DataType string
-	//}, nodes)
+	//fmt.Println("---------------------------------")
+	//fmt.Printf("%+v\n", fieldOptions)
+	//fmt.Println("---------------------------------")
 
-	//for i, node := range query.Node.ProjectV2.Fields.Nodes {
-	//	fields[i] = node
-	//}
-	return nil
+	return fieldOptions
 }
 
 func getProjectFields(gqlclient api.GQLClient, projectId string) (fieldTypes []struct {

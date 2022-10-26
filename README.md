@@ -9,9 +9,16 @@ add project(v2)
   - Issue
 - Custom Field Update
 
+## install
+
+```shell
+gh extension install swfz/gh-ap
+```
+
+## execution
+
 ```shell
 gh ap
 ```
 
 We will update it in an interactive format.
-

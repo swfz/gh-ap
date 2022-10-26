@@ -7,7 +7,9 @@ import (
 	"github.com/cli/go-gh"
 	"github.com/cli/go-gh/pkg/api"
 	graphql "github.com/cli/shurcooL-graphql"
+	"github.com/shurcool/githubv4"
 	"log"
+	"strconv"
 )
 
 type PR struct {
@@ -26,6 +28,120 @@ type ProjectField struct {
 	Name     string
 	DataType string
 	Options  []Option
+}
+type NamedDateValue struct {
+	Date githubv4.Date `json:"date,omitempty"`
+}
+
+func updateDateProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+	b := []byte(`{"date":"` + fieldValue + `T00:00:00Z"}`)
+	var v NamedDateValue
+	if err := json.Unmarshal(b, &v); err != nil {
+		panic(err)
+	}
+
+	var mutation struct {
+		UpdateProjectV2ItemFieldValue struct {
+			ClientMutationID string
+		} `graphql:"updateProjectV2ItemFieldValue(input: {projectId: $projectId itemId: $itemId fieldId: $fieldId value: {date: $value}})"`
+	}
+	variables := map[string]interface{}{
+		"projectId": graphql.ID(projectId),
+		"itemId":    graphql.ID(itemId),
+		"fieldId":   graphql.ID(fieldId),
+		"value":     v.Date,
+	}
+	fmt.Println(variables)
+
+	err := gqlclient.Mutate("UpdateFieldValue", &mutation, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(mutation)
+}
+
+func updateIterationProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+	var mutation struct {
+		UpdateProjectV2ItemFieldValue struct {
+			ClientMutationID string
+		} `graphql:"updateProjectV2ItemFieldValue(input: {projectId: $projectId itemId: $itemId fieldId: $fieldId value: {iterationId: $value}})"`
+	}
+	variables := map[string]interface{}{
+		"projectId": graphql.ID(projectId),
+		"itemId":    graphql.ID(itemId),
+		"fieldId":   graphql.ID(fieldId),
+		"value":     graphql.String(fieldValue),
+	}
+	fmt.Println(variables)
+
+	err := gqlclient.Mutate("UpdateFieldValue", &mutation, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(mutation)
+}
+
+func updateSingleSelectProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+	var mutation struct {
+		UpdateProjectV2ItemFieldValue struct {
+			ClientMutationID string
+		} `graphql:"updateProjectV2ItemFieldValue(input: {projectId: $projectId itemId: $itemId fieldId: $fieldId value: {singleSelectOptionId: $value}})"`
+	}
+	variables := map[string]interface{}{
+		"projectId": graphql.ID(projectId),
+		"itemId":    graphql.ID(itemId),
+		"fieldId":   graphql.ID(fieldId),
+		"value":     graphql.String(fieldValue),
+	}
+	fmt.Println(variables)
+
+	err := gqlclient.Mutate("UpdateFieldValue", &mutation, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(mutation)
+}
+
+func updateNumberProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue float64) {
+	var mutation struct {
+		UpdateProjectV2ItemFieldValue struct {
+			ClientMutationID string
+		} `graphql:"updateProjectV2ItemFieldValue(input: {projectId: $projectId itemId: $itemId fieldId: $fieldId value: {number: $value}})"`
+	}
+	variables := map[string]interface{}{
+		"projectId": graphql.ID(projectId),
+		"itemId":    graphql.ID(itemId),
+		"fieldId":   graphql.ID(fieldId),
+		"value":     graphql.Float(fieldValue),
+	}
+	fmt.Println(variables)
+
+	err := gqlclient.Mutate("UpdateFieldValue", &mutation, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(mutation)
+}
+
+func updateTextProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+	var mutation struct {
+		UpdateProjectV2ItemFieldValue struct {
+			ClientMutationID string
+		} `graphql:"updateProjectV2ItemFieldValue(input: {projectId: $projectId itemId: $itemId fieldId: $fieldId value: {text: $value}})"`
+	}
+	variables := map[string]interface{}{
+		"projectId": graphql.ID(projectId),
+		"itemId":    graphql.ID(itemId),
+		"fieldId":   graphql.ID(fieldId),
+		"value":     graphql.String(fieldValue),
+	}
+	fmt.Println(variables)
+
+	err := gqlclient.Mutate("UpdateFieldValue", &mutation, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(mutation)
 }
 
 func currentPullRequestToProject(gqlclient api.GQLClient, projectId string) (itemId string) {
@@ -285,15 +401,11 @@ func main() {
 			return projectNames[index]
 		},
 	}
-
 	survey.AskOne(q, &selectedProjectId)
 	fmt.Println("Selected Project ID", selectedProjectId)
 
 	fields := getProjectFields(gqlclient, selectedProjectId)
 	fmt.Printf("%+v\n", fields)
-
-	//fields := getProjectFields(gqlclient, selectedProjectId)
-	//fmt.Printf("%+v\n", fields)
 
 	itemTypes := []string{"Current PullRequest", "PullRequest", "Issue"}
 
@@ -308,5 +420,59 @@ func main() {
 	if selectedType == "Current PullRequest" {
 		itemId := currentPullRequestToProject(gqlclient, selectedProjectId)
 		fmt.Println(itemId)
+
+		for _, field := range fields {
+			if field.DataType == "TEXT" {
+				input := ""
+				prompt := &survey.Input{
+					Message: field.Name,
+				}
+				survey.AskOne(prompt, &input)
+				updateTextProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+			}
+			if field.DataType == "DATE" {
+				input := ""
+				prompt := &survey.Input{
+					Message: field.Name,
+				}
+				survey.AskOne(prompt, &input)
+				// TODO: validation
+				updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+			}
+			if field.DataType == "NUMBER" {
+				input := ""
+				prompt := &survey.Input{
+					Message: field.Name,
+				}
+				survey.AskOne(prompt, &input)
+				// TODO: validation
+				f, _ := strconv.ParseFloat(input, 64)
+				updateNumberProjectField(gqlclient, selectedProjectId, itemId, field.Id, f)
+			}
+			if field.DataType == "SINGLE_SELECT" || field.DataType == "ITERATION" {
+				var selectedOptionId string
+				message := "Choose a " + field.Name
+				fieldOptionSize := len(field.Options)
+				optionIds := make([]string, fieldOptionSize)
+				optionNames := make([]string, fieldOptionSize)
+				for i, opt := range field.Options {
+					optionIds[i] = opt.Id
+					optionNames[i] = opt.Name
+				}
+				q := &survey.Select{
+					Message: message,
+					Options: optionIds,
+					Description: func(value string, index int) string {
+						return optionNames[index]
+					},
+				}
+				survey.AskOne(q, &selectedOptionId)
+				if field.DataType == "ITERATION" {
+					updateIterationProjectField(gqlclient, selectedProjectId, itemId, field.Id, selectedOptionId)
+				} else {
+					updateSingleSelectProjectField(gqlclient, selectedProjectId, itemId, field.Id, selectedOptionId)
+				}
+			}
+		}
 	}
 }

@@ -1,66 +1,141 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/cli/go-gh"
+	"github.com/cli/go-gh/pkg/api"
 	graphql "github.com/cli/shurcooL-graphql"
+	"log"
 )
 
-func calc(v1 int, v2 int) (sum int, mul int) {
-	sum = v1 + v2
-	mul = v1 * v2
-
-	return
+type PR struct {
+	Id     string `json:"id"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+}
+type Project struct {
+	Id    string
+	Title string
 }
 
-func main() {
-	fmt.Println("hi world, this is the gh-ap extension!!!")
-	client, err := gh.RESTClient(nil)
+func currentPullRequestToProject(gqlclient api.GQLClient, projectId string) (itemId string) {
+	args := []string{"pr", "view", "--json", "id,number,title"}
+	stdOut, _, err := gh.Exec(args...)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	response := struct {Login string}{}
-	err = client.Get("user", &response)
-	if err != nil {
-		fmt.Println(err)
-		return
+	fmt.Println(stdOut.String())
+	var currentPR PR
+	if err := json.Unmarshal(stdOut.Bytes(), &currentPR); err != nil {
+		panic(err)
 	}
 
-	sum, mul := calc(1,2)
-	fmt.Printf("%d, %d", sum, mul)
+	fmt.Printf("%+v\n", currentPR)
 
-	gqlclient, err := gh.GQLClient(nil)
+	var addProjectMutation struct {
+		AddProjectV2ItemById struct {
+			Item struct {
+				Id string
+			}
+		} `graphql:"addProjectV2ItemById(input: {contentId: $contentId projectId: $projectId})"`
+	}
+
+	addProjectVariables := map[string]interface{}{
+		"contentId": graphql.ID(currentPR.Id),
+		"projectId": graphql.ID(projectId),
+	}
+	err = gqlclient.Mutate("Assign", &addProjectMutation, addProjectVariables)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("%+v\n", addProjectMutation)
+	return addProjectMutation.AddProjectV2ItemById.Item.Id
+}
 
+func queryProjects(gqlclient api.GQLClient, login string) (projects []struct {
+	Title string
+	Id    string
+}) {
 	var query struct {
 		User struct {
 			ProjectsV2 struct {
 				Nodes []struct {
 					Title string
-					Id string
+					Id    string
 				}
 			} `graphql:"projectsV2(first: $projects)"`
 		} `graphql:"user(login: $login)"`
 	}
-
 	variables := map[string]interface{}{
-		"login": graphql.String(response.Login),
+		"login":    graphql.String(login),
 		"projects": graphql.Int(10),
 	}
 
-	err = gqlclient.Query("ProjectsV2", &query, variables)
+	err := gqlclient.Query("ProjectsV2", &query, variables)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(query)
-	fmt.Println(variables)
 
-	fmt.Printf("running as %s\n", response.Login)
+	return query.User.ProjectsV2.Nodes
 }
 
-// For more examples of using go-gh, see:
-// https://github.com/cli/go-gh/blob/trunk/example_gh_test.go
+func main() {
+	restClient, err := gh.RESTClient(nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	gqlclient, err := gh.GQLClient(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	response := struct{ Login string }{}
+	err = restClient.Get("user", &response)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	//fmt.Printf("%+v\n", query)
+	//fmt.Printf("%#v\n", query)
+
+	projects := queryProjects(gqlclient, response.Login)
+	projectSize := len(projects)
+	projectIds := make([]string, projectSize)
+	projectNames := make([]string, projectSize)
+	for i, node := range projects {
+		fmt.Println(i, node)
+		projectIds[i] = node.Id
+		projectNames[i] = node.Title
+	}
+
+	var selectedId string
+	q := &survey.Select{
+		Message: "Choose a Project",
+		Options: projectIds,
+		Description: func(value string, index int) string {
+			return projectNames[index]
+		},
+	}
+
+	survey.AskOne(q, &selectedId)
+	fmt.Println("Selected Project ID", selectedId)
+
+	itemTypes := []string{"Current PullRequest", "PullRequest", "Issue"}
+
+	var selectedType string
+	typeQuestion := &survey.Select{
+		Message: "Choose a Item Type",
+		Options: itemTypes,
+		Default: itemTypes[0],
+	}
+	survey.AskOne(typeQuestion, &selectedType)
+
+	if selectedType == "Current PullRequest" {
+		itemId := currentPullRequestToProject(gqlclient, selectedId)
+		fmt.Println(itemId)
+	}
+}

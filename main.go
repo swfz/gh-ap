@@ -21,10 +21,11 @@ type Option struct {
 	Name string
 }
 
-type SelectField struct {
-	Id      string
-	Name    string
-	Options []Option
+type ProjectField struct {
+	Id       string
+	Name     string
+	DataType string
+	Options  []Option
 }
 
 func currentPullRequestToProject(gqlclient api.GQLClient, projectId string) (itemId string) {
@@ -134,7 +135,7 @@ func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTyp
 	return fieldTypes
 }
 
-func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields []SelectField) {
+func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields []ProjectField) {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
@@ -174,7 +175,7 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 		log.Fatal(err)
 	}
 
-	var fieldOptions []SelectField
+	var fieldOptions []ProjectField
 	for _, node := range query.Node.ProjectV2.Fields.Nodes {
 		if node.ProjectV2SingleSelectField.Id != "" {
 			if len(node.ProjectV2SingleSelectField.Options) > 0 {
@@ -187,7 +188,7 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 					options = append(options, option)
 				}
 
-				field := SelectField{
+				field := ProjectField{
 					Id:      node.ProjectV2SingleSelectField.Id,
 					Name:    node.ProjectV2SingleSelectField.Name,
 					Options: options,
@@ -208,7 +209,7 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 					iterationOptions = append(iterationOptions, opt)
 				}
 
-				field := SelectField{
+				field := ProjectField{
 					Id:      node.ProjectV2SingleSelectField.Id,
 					Name:    node.ProjectV2IterationField.Name,
 					Options: iterationOptions,
@@ -218,33 +219,34 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 		}
 	}
 
-	//fmt.Println("---------------------------------")
-	//fmt.Printf("%+v\n", fieldOptions)
-	//fmt.Println("---------------------------------")
-
 	return fieldOptions
 }
 
-func getProjectFields(gqlclient api.GQLClient, projectId string) (fieldTypes []struct {
-	Id       string
-	Name     string
-	DataType string
-	Options  []struct {
-		Id   string
-		Name string
+func getProjectFields(gqlclient api.GQLClient, projectId string) (fields []ProjectField) {
+	fieldOptions := getProjectFieldOptions(gqlclient, projectId)
+	fieldTypes := queryProjectFieldTypes(gqlclient, projectId)
+
+	for _, fieldType := range fieldTypes {
+		field := ProjectField{
+			Id:       fieldType.Id,
+			Name:     fieldType.Name,
+			DataType: fieldType.DataType,
+		}
+		if fieldType.DataType == "ITERATION" || fieldType.DataType == "SINGLE_SELECT" {
+			for _, options := range fieldOptions {
+				if options.Id == fieldType.Id {
+					field.Options = options.Options
+					break
+				}
+			}
+		} else {
+			field.Options = []Option{}
+		}
+		fields = append(fields, field)
 	}
-}) {
 
-	return nil
+	return fields
 }
-
-//func getProjectFields(gqlclient api.GQLClient, projectId string) (projects []struct {
-//	Title string
-//	Id    string
-//}) {
-//	var query struct {
-//	}
-//}
 
 //fmt.Printf("%+v\n", query)
 //fmt.Printf("%#v\n", query)
@@ -287,7 +289,7 @@ func main() {
 	survey.AskOne(q, &selectedProjectId)
 	fmt.Println("Selected Project ID", selectedProjectId)
 
-	fields := getProjectFieldOptions(gqlclient, selectedProjectId)
+	fields := getProjectFields(gqlclient, selectedProjectId)
 	fmt.Printf("%+v\n", fields)
 
 	//fields := getProjectFields(gqlclient, selectedProjectId)

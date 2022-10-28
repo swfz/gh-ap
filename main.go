@@ -11,6 +11,7 @@ import (
 	"github.com/shurcool/githubv4"
 	"log"
 	"strconv"
+	"time"
 )
 
 type PR struct {
@@ -434,14 +435,34 @@ func main() {
 				}
 			}
 			if field.DataType == "DATE" {
-				input := ""
-				prompt := &survey.Input{
-					Message: field.Name,
+				qs := []*survey.Question{
+					{
+						Name:   field.Name,
+						Prompt: &survey.Input{Message: field.Name},
+						Validate: func(v interface{}) error {
+							strValue := v.(string)
+							// Allow Zero Value
+							if strValue == "" {
+								return nil
+							}
+							_, err := time.Parse("2006-01-02", strValue)
+							if err != nil {
+								return errors.New("Please format it like this '2006-01-02'")
+							}
+							return nil
+						},
+					},
 				}
-				survey.AskOne(prompt, &input)
-				// TODO: validation
-				if input != "" {
-					updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+				answers := map[string]interface{}{}
+				err := survey.Ask(qs, &answers)
+				fmt.Printf("%+v\n", answers)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+
+				if answers[field.Name] != "" {
+					updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, answers[field.Name].(string))
 				}
 			}
 			if field.DataType == "NUMBER" {

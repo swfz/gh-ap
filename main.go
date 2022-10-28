@@ -429,7 +429,9 @@ func main() {
 					Message: field.Name,
 				}
 				survey.AskOne(prompt, &input)
-				updateTextProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+				if input != "" {
+					updateTextProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+				}
 			}
 			if field.DataType == "DATE" {
 				input := ""
@@ -438,7 +440,9 @@ func main() {
 				}
 				survey.AskOne(prompt, &input)
 				// TODO: validation
-				updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+				if input != "" {
+					updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+				}
 			}
 			if field.DataType == "NUMBER" {
 				qs := []*survey.Question{

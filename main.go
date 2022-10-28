@@ -450,7 +450,7 @@ func main() {
 		} else {
 			subCommand = "pr"
 		}
-		args := []string{subCommand, "view", "--json", "id,number,title"}
+		args := []string{subCommand, "view", answers["number"].(string), "--json", "id,number,title"}
 		stdOut, _, err := gh.Exec(args...)
 		if err != nil {
 			fmt.Println("Error: not found " + selectedType)

@@ -10,6 +10,7 @@ import (
 	"github.com/shurcool/githubv4"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -141,6 +142,9 @@ func main() {
 				Options: projectIds,
 				Description: func(value string, index int) string {
 					return projects[index].Title
+				},
+				Filter: func(filterValue string, optValue string, optIndex int) bool {
+					return strings.Contains(projects[optIndex].Title, filterValue)
 				},
 			},
 		},
@@ -288,27 +292,36 @@ func main() {
 			updateNumberProjectField(gqlclient, projectId, itemId, field.Id, f)
 		}
 		if field.DataType == "SINGLE_SELECT" || field.DataType == "ITERATION" {
-			var selectedOptionId string
-			message := "Choose a " + field.Name
 			fieldOptionSize := len(field.Options)
 			optionIds := make([]string, fieldOptionSize)
-			optionNames := make([]string, fieldOptionSize)
 			for i, opt := range field.Options {
 				optionIds[i] = opt.Id
-				optionNames[i] = opt.Name
 			}
-			q := &survey.Select{
-				Message: message,
-				Options: optionIds,
-				Description: func(value string, index int) string {
-					return optionNames[index]
+			qs := []*survey.Question{
+				{
+					Name: field.Name,
+					Prompt: &survey.Select{
+						Message: field.Name,
+						Options: optionIds,
+						Description: func(value string, index int) string {
+							return field.Options[index].Name
+						},
+						Filter: func(filterValue string, optValue string, optIndex int) bool {
+							return strings.Contains(field.Options[optIndex].Name, filterValue)
+						},
+					},
 				},
 			}
-			survey.AskOne(q, &selectedOptionId)
+			answers := map[string]string{}
+			err = survey.Ask(qs, &answers)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+
 			if field.DataType == "ITERATION" {
-				updateIterationProjectField(gqlclient, projectId, itemId, field.Id, selectedOptionId)
+				updateIterationProjectField(gqlclient, projectId, itemId, field.Id, answers[field.Name])
 			} else {
-				updateSingleSelectProjectField(gqlclient, projectId, itemId, field.Id, selectedOptionId)
+				updateSingleSelectProjectField(gqlclient, projectId, itemId, field.Id, answers[field.Name])
 			}
 		}
 	}

@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type PR struct {
+type Content struct {
 	Id     string `json:"id"`
 	Number int    `json:"number"`
 	Title  string `json:"title"`
@@ -154,7 +154,7 @@ func currentPullRequestToProject(gqlclient api.GQLClient, projectId string) (ite
 		return
 	}
 	fmt.Println(stdOut.String())
-	var currentPR PR
+	var currentPR Content
 	if err := json.Unmarshal(stdOut.Bytes(), &currentPR); err != nil {
 		panic(err)
 	}
@@ -455,7 +455,6 @@ func main() {
 				}
 				answers := map[string]interface{}{}
 				err := survey.Ask(qs, &answers)
-				fmt.Printf("%+v\n", answers)
 				if err != nil {
 					fmt.Println(err.Error())
 					return
@@ -514,5 +513,47 @@ func main() {
 				}
 			}
 		}
+	} else {
+		name := selectedType + " Number"
+		qs := []*survey.Question{
+			{
+				Name:   "number",
+				Prompt: &survey.Input{Message: name},
+				Validate: func(v interface{}) error {
+					strValue := v.(string)
+					_, err := strconv.Atoi(strValue)
+					if err != nil {
+						return errors.New("Value is Int")
+					}
+					return nil
+				},
+			},
+		}
+		answers := map[string]interface{}{}
+		err := survey.Ask(qs, &answers)
+		if err != nil {
+			fmt.Println(err.Error())
+			return
+		}
+		number, _ := strconv.Atoi(answers["number"].(string))
+		fmt.Println(number)
+		var subCommand string
+		if selectedType == "Issue" {
+			subCommand = "issue"
+		} else {
+			subCommand = "pr"
+		}
+		args := []string{subCommand, "view", "--json", "id,number,title"}
+		stdOut, _, err := gh.Exec(args...)
+		if err != nil {
+			fmt.Println("Error: not found " + selectedType)
+			return
+		}
+		var content Content
+		if err := json.Unmarshal(stdOut.Bytes(), &content); err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("%+v\n", content)
 	}
 }

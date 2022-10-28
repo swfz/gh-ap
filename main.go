@@ -115,8 +115,7 @@ func getProjectFields(gqlclient api.GQLClient, projectId string) (fields []Proje
 func main() {
 	restClient, err := gh.RESTClient(nil)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 	gqlclient, err := gh.GQLClient(nil)
 	if err != nil {
@@ -125,33 +124,35 @@ func main() {
 	response := struct{ Login string }{}
 	err = restClient.Get("user", &response)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatal(err)
 	}
 
 	projects := queryProjects(gqlclient, response.Login)
-	projectSize := len(projects)
-	projectIds := make([]string, projectSize)
-	projectNames := make([]string, projectSize)
+	projectIds := make([]string, len(projects))
 	for i, node := range projects {
-		fmt.Println(i, node)
 		projectIds[i] = node.Id
-		projectNames[i] = node.Title
 	}
 
-	var selectedProjectId string
-	q := &survey.Select{
-		Message: "Choose a Project",
-		Options: projectIds,
-		Description: func(value string, index int) string {
-			return projectNames[index]
+	qs := []*survey.Question{
+		{
+			Name: "ProjectId",
+			Prompt: &survey.Select{
+				Message: "Choose a Project",
+				Options: projectIds,
+				Description: func(value string, index int) string {
+					return projects[index].Title
+				},
+			},
 		},
 	}
-	survey.AskOne(q, &selectedProjectId)
-	fmt.Println("Selected Project ID", selectedProjectId)
+	answers := struct{ ProjectId string }{}
+	err = survey.Ask(qs, &answers)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
-	fields := getProjectFields(gqlclient, selectedProjectId)
-	fmt.Printf("%+v\n", fields)
+	projectId := answers.ProjectId
+	fields := getProjectFields(gqlclient, projectId)
 
 	itemTypes := []string{"Current PullRequest", "PullRequest", "Issue"}
 
@@ -177,7 +178,7 @@ func main() {
 			panic(err)
 		}
 
-		itemId = addProject(gqlclient, selectedProjectId, currentPR.Id)
+		itemId = addProject(gqlclient, projectId, currentPR.Id)
 	} else {
 		name := selectedType + " Number"
 		qs := []*survey.Question{
@@ -219,7 +220,7 @@ func main() {
 			panic(err)
 		}
 
-		itemId = addProject(gqlclient, selectedProjectId, content.Id)
+		itemId = addProject(gqlclient, projectId, content.Id)
 	}
 	for _, field := range fields {
 		if field.DataType == "TEXT" {
@@ -229,7 +230,7 @@ func main() {
 			}
 			survey.AskOne(prompt, &input)
 			if input != "" {
-				updateTextProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
+				updateTextProjectField(gqlclient, projectId, itemId, field.Id, input)
 			}
 		}
 		if field.DataType == "DATE" {
@@ -259,7 +260,7 @@ func main() {
 			}
 
 			if answers[field.Name] != "" {
-				updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, answers[field.Name].(string))
+				updateDateProjectField(gqlclient, projectId, itemId, field.Id, answers[field.Name].(string))
 			}
 		}
 		if field.DataType == "NUMBER" {
@@ -284,7 +285,7 @@ func main() {
 				return
 			}
 			f, _ := strconv.ParseFloat(answers[field.Name].(string), 64)
-			updateNumberProjectField(gqlclient, selectedProjectId, itemId, field.Id, f)
+			updateNumberProjectField(gqlclient, projectId, itemId, field.Id, f)
 		}
 		if field.DataType == "SINGLE_SELECT" || field.DataType == "ITERATION" {
 			var selectedOptionId string
@@ -305,9 +306,9 @@ func main() {
 			}
 			survey.AskOne(q, &selectedOptionId)
 			if field.DataType == "ITERATION" {
-				updateIterationProjectField(gqlclient, selectedProjectId, itemId, field.Id, selectedOptionId)
+				updateIterationProjectField(gqlclient, projectId, itemId, field.Id, selectedOptionId)
 			} else {
-				updateSingleSelectProjectField(gqlclient, selectedProjectId, itemId, field.Id, selectedOptionId)
+				updateSingleSelectProjectField(gqlclient, projectId, itemId, field.Id, selectedOptionId)
 			}
 		}
 	}

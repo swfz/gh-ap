@@ -176,7 +176,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		fmt.Println(stdOut.String())
+
 		var currentPR Content
 		if err := json.Unmarshal(stdOut.Bytes(), &currentPR); err != nil {
 			panic(err)

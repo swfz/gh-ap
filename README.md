@@ -1,6 +1,16 @@
 # gh-ap
 
-add project(v2)
+add Issue or Pull Request to Project(v2)
+
+## Usage
+
+```bash
+gh ap
+```
+
+## Demo
+
+![demo](demo.gif)
 
 ## Feature
 - Add Issue or PullRequest to GitHub ProjectV2
@@ -13,12 +23,6 @@ add project(v2)
 
 ```shell
 gh extension install swfz/gh-ap
-```
-
-## execution
-
-```shell
-gh ap
 ```
 
 We will update it in an interactive format.

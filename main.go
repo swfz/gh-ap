@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/cli/go-gh"
@@ -440,13 +441,27 @@ func main() {
 				updateDateProjectField(gqlclient, selectedProjectId, itemId, field.Id, input)
 			}
 			if field.DataType == "NUMBER" {
-				input := ""
-				prompt := &survey.Input{
-					Message: field.Name,
+				qs := []*survey.Question{
+					{
+						Name:   field.Name,
+						Prompt: &survey.Input{Message: field.Name},
+						Validate: func(v interface{}) error {
+							strValue := v.(string)
+							_, err := strconv.ParseFloat(strValue, 64)
+							if err != nil {
+								return errors.New("Value is Int or Float")
+							}
+							return nil
+						},
+					},
 				}
-				survey.AskOne(prompt, &input)
-				// TODO: validation
-				f, _ := strconv.ParseFloat(input, 64)
+				answers := map[string]interface{}{}
+				err := survey.Ask(qs, &answers)
+				if err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+				f, _ := strconv.ParseFloat(answers[field.Name].(string), 64)
 				updateNumberProjectField(gqlclient, selectedProjectId, itemId, field.Id, f)
 			}
 			if field.DataType == "SINGLE_SELECT" || field.DataType == "ITERATION" {

@@ -77,3 +77,65 @@ func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTyp
 
 	return fieldTypes
 }
+
+func queryProjectField(gqlclient api.GQLClient, projectId string) []struct {
+	ProjectV2IterationField struct {
+		Id            string
+		Name          string
+		Configuration struct {
+			Iterations []struct {
+				StartDate string
+				Id        string
+			}
+		}
+	} `graphql:"... on ProjectV2IterationField"`
+	ProjectV2SingleSelectField struct {
+		Id      string
+		Name    string
+		Options []struct {
+			Id   string
+			Name string
+		}
+	} `graphql:"... on ProjectV2SingleSelectField"`
+} {
+	var query struct {
+		Node struct {
+			ProjectV2 struct {
+				Fields struct {
+					Nodes []struct {
+						ProjectV2IterationField struct {
+							Id            string
+							Name          string
+							Configuration struct {
+								Iterations []struct {
+									StartDate string
+									Id        string
+								}
+							}
+						} `graphql:"... on ProjectV2IterationField"`
+						ProjectV2SingleSelectField struct {
+							Id      string
+							Name    string
+							Options []struct {
+								Id   string
+								Name string
+							}
+						} `graphql:"... on ProjectV2SingleSelectField"`
+					} `graphql:"nodes"`
+				} `graphql:"fields(first: $number)"`
+			} `graphql:"... on ProjectV2"`
+		} `graphql:"node(id: $projectId)"`
+	}
+
+	variables := map[string]interface{}{
+		"projectId": graphql.ID(projectId),
+		"number":    graphql.Int(20),
+	}
+
+	err := gqlclient.Query("Fields", &query, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return query.Node.ProjectV2.Fields.Nodes
+}

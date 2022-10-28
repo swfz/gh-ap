@@ -7,7 +7,6 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/cli/go-gh"
 	"github.com/cli/go-gh/pkg/api"
-	graphql "github.com/cli/shurcooL-graphql"
 	"github.com/shurcool/githubv4"
 	"log"
 	"strconv"
@@ -36,47 +35,10 @@ type NamedDateValue struct {
 }
 
 func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields []ProjectField) {
-	var query struct {
-		Node struct {
-			ProjectV2 struct {
-				Fields struct {
-					Nodes []struct {
-						ProjectV2IterationField struct {
-							Id            string
-							Name          string
-							Configuration struct {
-								Iterations []struct {
-									StartDate string
-									Id        string
-								}
-							}
-						} `graphql:"... on ProjectV2IterationField"`
-						ProjectV2SingleSelectField struct {
-							Id      string
-							Name    string
-							Options []struct {
-								Id   string
-								Name string
-							}
-						} `graphql:"... on ProjectV2SingleSelectField"`
-					} `graphql:"nodes"`
-				} `graphql:"fields(first: $number)"`
-			} `graphql:"... on ProjectV2"`
-		} `graphql:"node(id: $projectId)"`
-	}
-
-	variables := map[string]interface{}{
-		"projectId": graphql.ID(projectId),
-		"number":    graphql.Int(20),
-	}
-
-	err := gqlclient.Query("Fields", &query, variables)
-	if err != nil {
-		log.Fatal(err)
-	}
+	nodes := queryProjectField(gqlclient, projectId)
 
 	var fieldOptions []ProjectField
-	for _, node := range query.Node.ProjectV2.Fields.Nodes {
+	for _, node := range nodes {
 		if node.ProjectV2SingleSelectField.Id != "" {
 			if len(node.ProjectV2SingleSelectField.Options) > 0 {
 				var options []Option

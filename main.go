@@ -90,6 +90,11 @@ func getProjectFields(gqlclient api.GQLClient, projectId string) (fields []Proje
 	fieldTypes := queryProjectFieldTypes(gqlclient, projectId)
 
 	for _, fieldType := range fieldTypes {
+		skipOption := []Option{{
+			Id:   "Skip",
+			Name: "Skip This Question.",
+		},
+		}
 		field := ProjectField{
 			Id:       fieldType.Id,
 			Name:     fieldType.Name,
@@ -98,7 +103,8 @@ func getProjectFields(gqlclient api.GQLClient, projectId string) (fields []Proje
 		if fieldType.DataType == "ITERATION" || fieldType.DataType == "SINGLE_SELECT" {
 			for _, options := range fieldOptions {
 				if options.Id == fieldType.Id {
-					field.Options = options.Options
+
+					field.Options = append(skipOption, options.Options...)
 					break
 				}
 			}
@@ -317,7 +323,9 @@ func main() {
 			if err != nil {
 				log.Fatal(err.Error())
 			}
-
+			if answers[field.Name] == "Skip" {
+				continue
+			}
 			if field.DataType == "ITERATION" {
 				updateIterationProjectField(gqlclient, projectId, itemId, field.Id, answers[field.Name])
 			} else {

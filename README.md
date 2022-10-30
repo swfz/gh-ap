@@ -12,6 +12,16 @@ gh ap
 
 ![demo](demo.gif)
 
+## Requirement
+
+require `project` permission
+
+If you do not have Project permission, please use the following command to add the scope
+
+```bash
+gh auth login --scopes 'project'
+```
+
 ## Feature
 - Add Issue or PullRequest to GitHub ProjectV2
   - Current branch Pull Request

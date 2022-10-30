@@ -17,12 +17,12 @@ func queryProjects(gqlclient api.GQLClient, login string) (projects []struct {
 					Title string
 					Id    string
 				}
-			} `graphql:"projectsV2(first: $projects)"`
+			} `graphql:"projectsV2(first: $size)"`
 		} `graphql:"user(login: $login)"`
 	}
 	variables := map[string]interface{}{
-		"login":    graphql.String(login),
-		"projects": graphql.Int(10),
+		"login": graphql.String(login),
+		"size":  graphql.Int(10),
 	}
 
 	err := gqlclient.Query("ProjectsV2", &query, variables)

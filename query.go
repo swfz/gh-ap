@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func queryProjects(gqlclient api.GQLClient, login string) (projects []struct {
+func queryUserProjects(gqlclient api.GQLClient, login string) (projects []struct {
 	Title string
 	Id    string
 }) {

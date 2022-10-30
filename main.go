@@ -31,6 +31,14 @@ type ProjectField struct {
 	DataType string
 	Options  []Option
 }
+
+type Repository struct {
+	Name  string `json:"name"`
+	Owner struct {
+		Id    string `json:"id"`
+		Login string `json:"login"`
+	} `json:"owner"`
+}
 type NamedDateValue struct {
 	Date githubv4.Date `json:"date,omitempty"`
 }
@@ -134,8 +142,29 @@ func main() {
 		log.Fatal(err)
 	}
 
-	projects := queryProjects(gqlclient, response.Login)
+	var projects []struct {
+		Title string
+		Id    string
+	}
+	userProjects := queryUserProjects(gqlclient, response.Login)
+	projects = append(projects, userProjects...)
+
+	args := []string{"repo", "view", "--json", "name,owner"}
+	stdOut, _, err := gh.Exec(args...)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	var repository Repository
+	if err := json.Unmarshal(stdOut.Bytes(), &repository); err != nil {
+		panic(err)
+	}
+
+	organizationProjects := queryOrganizationProjects(gqlclient, repository.Owner.Login)
+	projects = append(projects, organizationProjects...)
+
 	projectIds := make([]string, len(projects))
+
 	for i, node := range projects {
 		projectIds[i] = node.Id
 	}

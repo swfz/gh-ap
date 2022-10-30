@@ -145,9 +145,22 @@ func main() {
 	var projects []struct {
 		Title string
 		Id    string
+		Type  string
 	}
 	userProjects := queryUserProjects(gqlclient, response.Login)
-	projects = append(projects, userProjects...)
+
+	for _, p := range userProjects {
+		project := struct {
+			Title string
+			Id    string
+			Type  string
+		}{
+			Title: p.Title,
+			Id:    p.Id,
+			Type:  "UserProject",
+		}
+		projects = append(projects, project)
+	}
 
 	args := []string{"repo", "view", "--json", "name,owner"}
 	stdOut, _, err := gh.Exec(args...)
@@ -159,10 +172,21 @@ func main() {
 	if err := json.Unmarshal(stdOut.Bytes(), &repository); err != nil {
 		panic(err)
 	}
-
 	organizationProjects := queryOrganizationProjects(gqlclient, repository.Owner.Login)
-	projects = append(projects, organizationProjects...)
+	for _, p := range organizationProjects {
+		project := struct {
+			Title string
+			Id    string
+			Type  string
+		}{
+			Title: p.Title,
+			Id:    p.Id,
+			Type:  "OrganizationProject",
+		}
+		projects = append(projects, project)
+	}
 
+	fmt.Printf("%+v\n", projects)
 	projectIds := make([]string, len(projects))
 
 	for i, node := range projects {
@@ -176,7 +200,7 @@ func main() {
 				Message: "Choose a Project",
 				Options: projectIds,
 				Description: func(value string, index int) string {
-					return projects[index].Title
+					return projects[index].Title + " (" + projects[index].Type + ")"
 				},
 				Filter: func(filterValue string, optValue string, optIndex int) bool {
 					return strings.Contains(projects[optIndex].Title, filterValue)

@@ -189,9 +189,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%+v\n", projects)
 	projectIds := make([]string, len(projects))
-
 	for i, node := range projects {
 		projectIds[i] = node.Id
 	}

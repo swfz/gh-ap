@@ -38,6 +38,7 @@ type Repository struct {
 		Id    string `json:"id"`
 		Login string `json:"login"`
 	} `json:"owner"`
+	IsInOrganization bool `json:"isInOrganization"`
 }
 type NamedDateValue struct {
 	Date githubv4.Date `json:"date,omitempty"`
@@ -162,7 +163,7 @@ func main() {
 		projects = append(projects, project)
 	}
 
-	args := []string{"repo", "view", "--json", "name,owner"}
+	args := []string{"repo", "view", "--json", "name,owner,isInOrganization"}
 	stdOut, _, err := gh.Exec(args...)
 	if err != nil {
 		fmt.Println(err)
@@ -172,18 +173,20 @@ func main() {
 	if err := json.Unmarshal(stdOut.Bytes(), &repository); err != nil {
 		panic(err)
 	}
-	organizationProjects := queryOrganizationProjects(gqlclient, repository.Owner.Login)
-	for _, p := range organizationProjects {
-		project := struct {
-			Title string
-			Id    string
-			Type  string
-		}{
-			Title: p.Title,
-			Id:    p.Id,
-			Type:  "OrganizationProject",
+	if repository.IsInOrganization {
+		organizationProjects := queryOrganizationProjects(gqlclient, repository.Owner.Login)
+		for _, p := range organizationProjects {
+			project := struct {
+				Title string
+				Id    string
+				Type  string
+			}{
+				Title: p.Title,
+				Id:    p.Id,
+				Type:  "OrganizationProject",
+			}
+			projects = append(projects, project)
 		}
-		projects = append(projects, project)
 	}
 
 	fmt.Printf("%+v\n", projects)

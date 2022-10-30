@@ -33,6 +33,33 @@ func queryProjects(gqlclient api.GQLClient, login string) (projects []struct {
 	return query.User.ProjectsV2.Nodes
 }
 
+func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects []struct {
+	Title string
+	Id    string
+}) {
+	var query struct {
+		Organization struct {
+			ProjectsV2 struct {
+				Nodes []struct {
+					Title string
+					Id    string
+				}
+			} `graphql:"projectsV2(first: $size)"`
+		} `graphql:"organization(login: $login)"`
+	}
+	variables := map[string]interface{}{
+		"login": graphql.String(owner),
+		"size":  graphql.Int(10),
+	}
+
+	err := gqlclient.Query("ProjectsV2", &query, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return query.Organization.ProjectsV2.Nodes
+}
+
 func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTypes []struct {
 	Id       string
 	Name     string

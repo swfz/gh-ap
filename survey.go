@@ -10,9 +10,9 @@ import (
 )
 
 func askOneProjectId(projects []Project) (projectId string) {
-	projectIds := make([]string, len(projects))
+	projectNames := make([]string, len(projects))
 	for i, node := range projects {
-		projectIds[i] = node.Id
+		projectNames[i] = node.Title
 		if node.Id == "" {
 			log.Print(`[Warning] This extension requires permission for the "project" scope. You may not currently have permission to retrieve project information, please check`)
 		}
@@ -23,23 +23,23 @@ func askOneProjectId(projects []Project) (projectId string) {
 			Name: "ProjectId",
 			Prompt: &survey.Select{
 				Message: "Choose a Project",
-				Options: projectIds,
+				Options: projectNames,
 				Description: func(value string, index int) string {
-					return projects[index].Title + " (" + projects[index].Type + ")"
-				},
-				Filter: func(filterValue string, optValue string, optIndex int) bool {
-					return strings.Contains(projects[optIndex].Title, filterValue)
+					return projects[index].Type
 				},
 			},
 		},
 	}
-	answers := struct{ ProjectId string }{}
+	answers := map[string]interface{}{}
+
 	err := survey.Ask(qs, &answers)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	return answers.ProjectId
+	optionAnswer := answers["ProjectId"].(survey.OptionAnswer)
+
+	return projects[optionAnswer.Index].Id
 }
 
 func askOneContentType(itemTypes []string) string {
@@ -154,30 +154,25 @@ func askNumberFieldValue(fieldName string) float64 {
 
 func askOneSelectFieldValue(fieldName string, options []Option) string {
 	fieldOptionSize := len(options)
-	optionIds := make([]string, fieldOptionSize)
+	optionNames := make([]string, fieldOptionSize)
 	for i, opt := range options {
-		optionIds[i] = opt.Id
+		optionNames[i] = opt.Name
 	}
 	qs := []*survey.Question{
 		{
 			Name: fieldName,
 			Prompt: &survey.Select{
 				Message: fieldName,
-				Options: optionIds,
-				Description: func(value string, index int) string {
-					return options[index].Name
-				},
-				Filter: func(filterValue string, optValue string, optIndex int) bool {
-					return strings.Contains(options[optIndex].Name, filterValue)
-				},
+				Options: optionNames,
 			},
 		},
 	}
-	answers := map[string]string{}
+	answers := map[string]interface{}{}
 	err := survey.Ask(qs, &answers)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	optionAnswer := answers[fieldName].(survey.OptionAnswer)
 
-	return answers[fieldName]
+	return options[optionAnswer.Index].Id
 }

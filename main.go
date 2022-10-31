@@ -192,6 +192,9 @@ func main() {
 	projectIds := make([]string, len(projects))
 	for i, node := range projects {
 		projectIds[i] = node.Id
+		if node.Id == "" {
+			log.Print(`[Warning] This extension requires permission for the "project" scope. You may not currently have permission to retrieve project information, please check`)
+		}
 	}
 
 	qs := []*survey.Question{

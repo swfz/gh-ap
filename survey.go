@@ -154,30 +154,25 @@ func askNumberFieldValue(fieldName string) float64 {
 
 func askOneSelectFieldValue(fieldName string, options []Option) string {
 	fieldOptionSize := len(options)
-	optionIds := make([]string, fieldOptionSize)
+	optionNames := make([]string, fieldOptionSize)
 	for i, opt := range options {
-		optionIds[i] = opt.Id
+		optionNames[i] = opt.Name
 	}
 	qs := []*survey.Question{
 		{
 			Name: fieldName,
 			Prompt: &survey.Select{
 				Message: fieldName,
-				Options: optionIds,
-				Description: func(value string, index int) string {
-					return options[index].Name
-				},
-				Filter: func(filterValue string, optValue string, optIndex int) bool {
-					return strings.Contains(options[optIndex].Name, filterValue)
-				},
+				Options: optionNames,
 			},
 		},
 	}
-	answers := map[string]string{}
+	answers := map[string]interface{}{}
 	err := survey.Ask(qs, &answers)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	optionAnswer := answers[fieldName].(survey.OptionAnswer)
 
-	return answers[fieldName]
+	return options[optionAnswer.Index].Id
 }

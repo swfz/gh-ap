@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/cli/go-gh"
+	"github.com/cli/go-gh/pkg/api"
 	"log"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func main() {
+func getProjects(gqlclient api.GQLClient) []Project {
 	restClient, err := gh.RESTClient(nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	gqlclient, err := gh.GQLClient(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,7 +22,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	var projects []Project
 
 	userProjects := queryUserProjects(gqlclient, response.Login)
@@ -59,6 +55,17 @@ func main() {
 			projects = append(projects, project)
 		}
 	}
+
+	return projects
+}
+
+func main() {
+	gqlclient, err := gh.GQLClient(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	projects := getProjects(gqlclient)
 
 	projectIds := make([]string, len(projects))
 	for i, node := range projects {

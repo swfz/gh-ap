@@ -5,6 +5,7 @@ import (
 	"github.com/cli/go-gh"
 	"github.com/cli/go-gh/pkg/api"
 	"log"
+	"strconv"
 )
 
 func getProjects(gqlclient api.GQLClient) []Project {
@@ -61,6 +62,7 @@ func main() {
 	}
 	flag.IntVar(&options.issueNo, "issue", 0, "Issue Number")
 	flag.IntVar(&options.prNo, "pr", 0, "PullRequest Number")
+	flag.Parse()
 
 	gqlclient, err := gh.GQLClient(nil)
 	if err != nil {
@@ -71,19 +73,28 @@ func main() {
 	projectId := askOneProjectId(projects)
 	fields := getProjectFields(gqlclient, projectId)
 
-	itemTypes := []string{"Current PullRequest", "PullRequest", "Issue"}
-	selectedType := askOneContentType(itemTypes)
-
 	var itemId string
-	if selectedType == "Current PullRequest" {
-		currentPR := ghCurrentPullRequest()
-		itemId = addProject(gqlclient, projectId, currentPR.Id)
+	var content Content
+
+	if options.issueNo != 0 || options.prNo != 0 {
+		if options.issueNo != 0 {
+			content = ghContent("Issue", strconv.Itoa(options.issueNo))
+		} else {
+			content = ghContent("PullRequest", strconv.Itoa(options.prNo))
+		}
 	} else {
-		contentList := ghContentList(selectedType)
-		number := askContentNumber(selectedType, contentList)
-		content := ghContent(selectedType, number)
-		itemId = addProject(gqlclient, projectId, content.Id)
+		itemTypes := []string{"Current PullRequest", "PullRequest", "Issue"}
+		selectedType := askOneContentType(itemTypes)
+
+		if selectedType == "Current PullRequest" {
+			content = ghCurrentPullRequest()
+		} else {
+			contentList := ghContentList(selectedType)
+			number := askContentNumber(selectedType, contentList)
+			content = ghContent(selectedType, number)
+		}
 	}
+	itemId = addProject(gqlclient, projectId, content.Id)
 
 	for _, field := range fields {
 		if field.DataType == "TEXT" {

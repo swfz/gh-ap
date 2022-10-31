@@ -8,6 +8,28 @@ add Issue or Pull Request to Project(v2)
 gh ap
 ```
 
+### Optional Args
+
+```bash
+gh ap --help
+  -issue int
+        Issue Number
+  -pr int
+        PullRequest Number
+```
+
+- Specified Issue Number(Optional)
+
+```bash
+gh ap -issue ${issueNumber}
+```
+
+- Specified PullRequest Number(Optional)
+
+```bash
+gh ap -pr ${pullRequestNumber}
+```
+
 ## Demo
 
 ![demo](demo.gif)

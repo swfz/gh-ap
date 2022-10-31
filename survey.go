@@ -55,19 +55,26 @@ func askOneContentType(itemTypes []string) string {
 	return selectedType
 }
 
-func askContentNumber(contentType string) string {
+func askContentNumber(contentType string, contents []Content) string {
+	var numbers = make([]string, len(contents))
+	for i, c := range contents {
+		numbers[i] = strconv.Itoa(c.Number)
+	}
+
 	name := contentType + " Number"
 	qs := []*survey.Question{
 		{
-			Name:   "number",
-			Prompt: &survey.Input{Message: name},
-			Validate: func(v interface{}) error {
-				strValue := v.(string)
-				_, err := strconv.Atoi(strValue)
-				if err != nil {
-					return errors.New("Value is Int.")
-				}
-				return nil
+			Name: "number",
+			Prompt: &survey.Select{
+				Message: name,
+				Options: numbers,
+				Description: func(value string, index int) string {
+					return contents[index].Title
+				},
+				Filter: func(filterValue string, optValue string, optIndex int) bool {
+					return strings.Contains(contents[optIndex].Title, filterValue)
+				},
+				PageSize: 30,
 			},
 		},
 	}
@@ -76,8 +83,9 @@ func askContentNumber(contentType string) string {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+	optionAnswer := answers["number"].(survey.OptionAnswer)
 
-	return answers["number"].(string)
+	return optionAnswer.Value
 }
 
 func askTextFieldValue(fieldName string) string {

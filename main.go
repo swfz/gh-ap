@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/cli/go-gh"
 	"github.com/cli/go-gh/pkg/api"
 	"log"
@@ -54,6 +55,13 @@ func getProjects(gqlclient api.GQLClient) []Project {
 }
 
 func main() {
+	var options struct {
+		issueNo int
+		prNo    int
+	}
+	flag.IntVar(&options.issueNo, "issue", 0, "Issue Number")
+	flag.IntVar(&options.prNo, "pr", 0, "PullRequest Number")
+
 	gqlclient, err := gh.GQLClient(nil)
 	if err != nil {
 		log.Fatal(err)
@@ -71,7 +79,8 @@ func main() {
 		currentPR := ghCurrentPullRequest()
 		itemId = addProject(gqlclient, projectId, currentPR.Id)
 	} else {
-		number := askContentNumber(selectedType)
+		contentList := ghContentList(selectedType)
+		number := askContentNumber(selectedType, contentList)
 		content := ghContent(selectedType, number)
 		itemId = addProject(gqlclient, projectId, content.Id)
 	}

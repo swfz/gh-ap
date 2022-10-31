@@ -54,3 +54,24 @@ func ghContent(contentType string, number string) Content {
 
 	return content
 }
+
+func ghContentList(contentType string) []Content {
+	var subCommand string
+	if contentType == "Issue" {
+		subCommand = "issue"
+	} else {
+		subCommand = "pr"
+	}
+	args := []string{subCommand, "list", "--json", "id,number,title"}
+	stdOut, _, err := gh.Exec(args...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var contents []Content
+
+	if err := json.Unmarshal(stdOut.Bytes(), &contents); err != nil {
+		panic(err)
+	}
+
+	return contents
+}

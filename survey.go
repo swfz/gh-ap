@@ -74,7 +74,7 @@ func askContentNumber(contentType string, contents []Content) string {
 				Filter: func(filterValue string, optValue string, optIndex int) bool {
 					return strings.Contains(contents[optIndex].Title, filterValue)
 				},
-				PageSize: 30,
+				PageSize: 50,
 			},
 		},
 	}

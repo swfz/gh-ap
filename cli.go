@@ -62,7 +62,7 @@ func ghContentList(contentType string) []Content {
 	} else {
 		subCommand = "pr"
 	}
-	args := []string{subCommand, "list", "--json", "id,number,title"}
+	args := []string{subCommand, "list", "--limit", "50", "--json", "id,number,title"}
 	stdOut, _, err := gh.Exec(args...)
 	if err != nil {
 		log.Fatal(err)

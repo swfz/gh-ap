@@ -1,6 +1,6 @@
 package main
 
-import "github.com/shurcool/githubv4"
+import "github.com/shurcooL/githubv4"
 
 type Project struct {
 	Title string

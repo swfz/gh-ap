@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/cli/go-gh"
 	graphql "github.com/cli/shurcooL-graphql"
-	"github.com/shurcool/githubv4"
+	"github.com/shurcooL/githubv4"
 	"log"
 )
 

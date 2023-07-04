@@ -6,7 +6,7 @@ require (
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/cli/go-gh v0.1.2
 	github.com/cli/shurcooL-graphql v0.0.2
-	github.com/shurcool/githubv4 v0.0.0-20221021030919-a134b1472cc7
+	github.com/shurcooL/githubv4 v0.0.0-20220520033151-0b4e3294ff00
 )
 
 require (
@@ -23,7 +23,6 @@ require (
 	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/muesli/termenv v0.12.0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/shurcooL/githubv4 v0.0.0-20220520033151-0b4e3294ff00 // indirect
 	github.com/shurcooL/graphql v0.0.0-20220606043923-3cf50f8a0a29 // indirect
 	github.com/stretchr/testify v1.7.5 // indirect
 	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e // indirect

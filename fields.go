@@ -2,9 +2,7 @@ package main
 
 import "github.com/cli/go-gh/pkg/api"
 
-func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields []ProjectField) {
-	nodes := queryProjectField(gqlclient, projectId)
-
+func buildProjectFieldOptions(nodes []ProjectFieldNode) []ProjectField {
 	var fieldOptions []ProjectField
 	for _, node := range nodes {
 		if node.ProjectV2SingleSelectField.Id != "" {
@@ -52,9 +50,8 @@ func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) (fields [
 	return fieldOptions
 }
 
-func getProjectFields(gqlclient api.GQLClient, projectId string) (fields []ProjectField) {
-	fieldOptions := getProjectFieldOptions(gqlclient, projectId)
-	fieldTypes := queryProjectFieldTypes(gqlclient, projectId)
+func mergeFieldsWithOptions(fieldOptions []ProjectField, fieldTypes []FieldType) []ProjectField {
+	var fields []ProjectField
 
 	for _, fieldType := range fieldTypes {
 		skipOption := []Option{{
@@ -82,4 +79,15 @@ func getProjectFields(gqlclient api.GQLClient, projectId string) (fields []Proje
 	}
 
 	return fields
+}
+
+func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) []ProjectField {
+	nodes := queryProjectField(gqlclient, projectId)
+	return buildProjectFieldOptions(nodes)
+}
+
+func getProjectFields(gqlclient api.GQLClient, projectId string) []ProjectField {
+	fieldOptions := getProjectFieldOptions(gqlclient, projectId)
+	fieldTypes := queryProjectFieldTypes(gqlclient, projectId)
+	return mergeFieldsWithOptions(fieldOptions, fieldTypes)
 }

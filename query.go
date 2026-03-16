@@ -60,11 +60,7 @@ func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects 
 	return query.Organization.ProjectsV2.Nodes
 }
 
-func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTypes []struct {
-	Id       string
-	Name     string
-	DataType string
-}) {
+func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) []FieldType {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
@@ -91,64 +87,24 @@ func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTyp
 		log.Fatal(err)
 	}
 
-	nodes := len(query.Node.ProjectV2.Fields.Nodes)
-	fieldTypes = make([]struct {
-		Id       string
-		Name     string
-		DataType string
-	}, nodes)
-
+	fieldTypes := make([]FieldType, len(query.Node.ProjectV2.Fields.Nodes))
 	for i, node := range query.Node.ProjectV2.Fields.Nodes {
-		fieldTypes[i] = node.ProjectV2FieldCommon
+		fieldTypes[i] = FieldType{
+			Id:       node.ProjectV2FieldCommon.Id,
+			Name:     node.ProjectV2FieldCommon.Name,
+			DataType: node.ProjectV2FieldCommon.DataType,
+		}
 	}
 
 	return fieldTypes
 }
 
-func queryProjectField(gqlclient api.GQLClient, projectId string) []struct {
-	ProjectV2IterationField struct {
-		Id            string
-		Name          string
-		Configuration struct {
-			Iterations []struct {
-				StartDate string
-				Id        string
-			}
-		}
-	} `graphql:"... on ProjectV2IterationField"`
-	ProjectV2SingleSelectField struct {
-		Id      string
-		Name    string
-		Options []struct {
-			Id   string
-			Name string
-		}
-	} `graphql:"... on ProjectV2SingleSelectField"`
-} {
+func queryProjectField(gqlclient api.GQLClient, projectId string) []ProjectFieldNode {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
 				Fields struct {
-					Nodes []struct {
-						ProjectV2IterationField struct {
-							Id            string
-							Name          string
-							Configuration struct {
-								Iterations []struct {
-									StartDate string
-									Id        string
-								}
-							}
-						} `graphql:"... on ProjectV2IterationField"`
-						ProjectV2SingleSelectField struct {
-							Id      string
-							Name    string
-							Options []struct {
-								Id   string
-								Name string
-							}
-						} `graphql:"... on ProjectV2SingleSelectField"`
-					} `graphql:"nodes"`
+					Nodes []ProjectFieldNode `graphql:"nodes"`
 				} `graphql:"fields(first: $number)"`
 			} `graphql:"... on ProjectV2"`
 		} `graphql:"node(id: $projectId)"`

@@ -102,6 +102,88 @@ func TestBuildProjectFieldOptions(t *testing.T) {
 			},
 		},
 		{
+			name: "SingleSelectField.Idが空のノードはスキップされる",
+			nodes: []ProjectFieldNode{
+				{}, // TEXT等のフィールド: 全フィールドがゼロ値
+				{
+					ProjectV2SingleSelectField: struct {
+						Id      string
+						Name    string
+						Options []SingleSelectOption
+					}{
+						Id:   "ss-1",
+						Name: "Status",
+						Options: []SingleSelectOption{
+							{Id: "opt-1", Name: "Todo"},
+						},
+					},
+				},
+				{}, // もう1つの空ノード
+			},
+			want: []ProjectField{
+				{
+					Id:   "ss-1",
+					Name: "Status",
+					Options: []Option{
+						{Id: "opt-1", Name: "Todo"},
+					},
+				},
+			},
+		},
+		{
+			name: "複数のSingleSelectフィールドがある場合すべて取得できる",
+			nodes: []ProjectFieldNode{
+				{
+					ProjectV2SingleSelectField: struct {
+						Id      string
+						Name    string
+						Options []SingleSelectOption
+					}{
+						Id:   "ss-1",
+						Name: "Status",
+						Options: []SingleSelectOption{
+							{Id: "opt-1", Name: "Todo"},
+							{Id: "opt-2", Name: "In Progress"},
+							{Id: "opt-3", Name: "Done"},
+						},
+					},
+				},
+				{
+					ProjectV2SingleSelectField: struct {
+						Id      string
+						Name    string
+						Options []SingleSelectOption
+					}{
+						Id:   "ss-2",
+						Name: "Priority",
+						Options: []SingleSelectOption{
+							{Id: "p1", Name: "High"},
+							{Id: "p2", Name: "Low"},
+						},
+					},
+				},
+			},
+			want: []ProjectField{
+				{
+					Id:   "ss-1",
+					Name: "Status",
+					Options: []Option{
+						{Id: "opt-1", Name: "Todo"},
+						{Id: "opt-2", Name: "In Progress"},
+						{Id: "opt-3", Name: "Done"},
+					},
+				},
+				{
+					Id:   "ss-2",
+					Name: "Priority",
+					Options: []Option{
+						{Id: "p1", Name: "High"},
+						{Id: "p2", Name: "Low"},
+					},
+				},
+			},
+		},
+		{
 			name: "SingleSelectとIterationが混在する場合は両方返す",
 			nodes: []ProjectFieldNode{
 				{
@@ -265,6 +347,78 @@ func TestMergeFieldsWithOptions(t *testing.T) {
 			},
 			want: []ProjectField{
 				{Id: "ss-field", Name: "Status", DataType: "SINGLE_SELECT", Options: nil},
+			},
+		},
+		{
+			name: "複数のSINGLE_SELECTとITERATIONがそれぞれマッチする",
+			fieldOptions: []ProjectField{
+				{
+					Id:      "ss-1",
+					Options: []Option{{Id: "opt-1", Name: "Todo"}, {Id: "opt-2", Name: "Done"}},
+				},
+				{
+					Id:      "ss-2",
+					Options: []Option{{Id: "p1", Name: "High"}, {Id: "p2", Name: "Low"}},
+				},
+				{
+					Id:      "iter-1",
+					Options: []Option{{Id: "i1", Name: "2024-01-01"}},
+				},
+			},
+			fieldTypes: []FieldType{
+				{Id: "ss-1", Name: "Status", DataType: "SINGLE_SELECT"},
+				{Id: "ss-2", Name: "Priority", DataType: "SINGLE_SELECT"},
+				{Id: "iter-1", Name: "Sprint", DataType: "ITERATION"},
+			},
+			want: []ProjectField{
+				{
+					Id: "ss-1", Name: "Status", DataType: "SINGLE_SELECT",
+					Options: []Option{
+						{Id: "Skip", Name: "Skip This Question."},
+						{Id: "opt-1", Name: "Todo"},
+						{Id: "opt-2", Name: "Done"},
+					},
+				},
+				{
+					Id: "ss-2", Name: "Priority", DataType: "SINGLE_SELECT",
+					Options: []Option{
+						{Id: "Skip", Name: "Skip This Question."},
+						{Id: "p1", Name: "High"},
+						{Id: "p2", Name: "Low"},
+					},
+				},
+				{
+					Id: "iter-1", Name: "Sprint", DataType: "ITERATION",
+					Options: []Option{
+						{Id: "Skip", Name: "Skip This Question."},
+						{Id: "i1", Name: "2024-01-01"},
+					},
+				},
+			},
+		},
+		{
+			name: "fieldOptionsにマッチしないIDが含まれていても無視される",
+			fieldOptions: []ProjectField{
+				{
+					Id:      "unrelated-field",
+					Options: []Option{{Id: "x", Name: "X"}},
+				},
+				{
+					Id:      "ss-1",
+					Options: []Option{{Id: "opt-1", Name: "Todo"}},
+				},
+			},
+			fieldTypes: []FieldType{
+				{Id: "ss-1", Name: "Status", DataType: "SINGLE_SELECT"},
+			},
+			want: []ProjectField{
+				{
+					Id: "ss-1", Name: "Status", DataType: "SINGLE_SELECT",
+					Options: []Option{
+						{Id: "Skip", Name: "Skip This Question."},
+						{Id: "opt-1", Name: "Todo"},
+					},
+				},
 			},
 		},
 		{

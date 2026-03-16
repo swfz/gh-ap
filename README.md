@@ -12,6 +12,8 @@ gh ap
 
 ```bash
 gh ap --help
+  -field value
+        Field value in 'FieldName=Value' format (can be specified multiple times)
   -issue int
         Issue Number
   -pr int
@@ -29,6 +31,16 @@ gh ap -issue ${issueNumber}
 ```bash
 gh ap -pr ${pullRequestNumber}
 ```
+
+- Specified Field Values(Optional)
+
+Set custom field values directly without interactive prompts. Can be specified multiple times for multiple fields.
+
+```bash
+gh ap -issue 123 -field "Status=Done" -field "Priority=High"
+```
+
+Supported field types: Text, Date(`YYYY-MM-DD`), Number, Single Select, Iteration
 
 ## Demo
 

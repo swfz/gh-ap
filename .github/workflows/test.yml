@@ -18,4 +18,4 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go build .
-      - run: go test -v -count=1 .
+      - run: go test -v -count=1 ./...

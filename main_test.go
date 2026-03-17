@@ -91,6 +91,56 @@ func TestFieldFlagsSet(t *testing.T) {
 	}
 }
 
+func TestFindProjectByName(t *testing.T) {
+	projects := []Project{
+		{Title: "Project Alpha", Id: "id-alpha", Type: "UserProject"},
+		{Title: "Project Beta", Id: "id-beta", Type: "OrganizationProject"},
+		{Title: "My Board", Id: "id-board", Type: "UserProject"},
+	}
+
+	tests := []struct {
+		name      string
+		search    string
+		wantFound bool
+		wantId    string
+	}{
+		{
+			name:      "存在するプロジェクト",
+			search:    "Project Alpha",
+			wantFound: true,
+			wantId:    "id-alpha",
+		},
+		{
+			name:      "存在しないプロジェクト",
+			search:    "NotExist",
+			wantFound: false,
+		},
+		{
+			name:      "完全一致が必要",
+			search:    "Project",
+			wantFound: false,
+		},
+		{
+			name:      "別のプロジェクト",
+			search:    "My Board",
+			wantFound: true,
+			wantId:    "id-board",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, found := findProjectByName(projects, tt.search)
+			if found != tt.wantFound {
+				t.Errorf("findProjectByName(%s) found = %v, want %v", tt.search, found, tt.wantFound)
+			}
+			if found && id != tt.wantId {
+				t.Errorf("findProjectByName(%s) Id = %s, want %s", tt.search, id, tt.wantId)
+			}
+		})
+	}
+}
+
 func TestFindOptionByName(t *testing.T) {
 	options := []Option{
 		{Id: "id1", Name: "Done"},

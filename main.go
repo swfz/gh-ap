@@ -89,24 +89,82 @@ func findOptionByName(options []Option, name string) (Option, bool) {
 	return Option{}, false
 }
 
+func resolveProjectIdByNumber(gqlclient api.GQLClient, number int) string {
+	restClient, err := gh.RESTClient(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	response := struct{ Login string }{}
+	err = restClient.Get("user", &response)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Try user project first
+	if id, found := queryUserProjectByNumber(gqlclient, response.Login, number); found {
+		return id
+	}
+
+	// Try organization project
+	repository := ghRepository()
+	if repository.IsInOrganization {
+		if id, found := queryOrganizationProjectByNumber(gqlclient, repository.Owner.Login, number); found {
+			return id
+		}
+	}
+
+	log.Fatalf("Project #%d not found", number)
+	return ""
+}
+
+func findProjectByName(projects []Project, name string) (string, bool) {
+	for _, p := range projects {
+		if p.Title == name {
+			return p.Id, true
+		}
+	}
+	return "", false
+}
+
 func main() {
 	var options struct {
-		issueNo int
-		prNo    int
-		fields  fieldFlags
+		issueNo       int
+		prNo          int
+		projectName   string
+		projectNumber int
+		fields        fieldFlags
 	}
 	flag.IntVar(&options.issueNo, "issue", 0, "Issue Number")
 	flag.IntVar(&options.prNo, "pr", 0, "PullRequest Number")
+	flag.StringVar(&options.projectName, "project", "", "Project Name")
+	flag.IntVar(&options.projectNumber, "project-id", 0, "Project Number (the number shown in the project URL)")
 	flag.Var(&options.fields, "field", "Field value in 'FieldName=Value' format (can be specified multiple times)")
 	flag.Parse()
+
+	if options.projectName != "" && options.projectNumber != 0 {
+		log.Fatal("-project and -project-id cannot be used together")
+	}
 
 	gqlclient, err := gh.GQLClient(nil)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	projects := getProjects(gqlclient)
-	projectId := askOneProjectId(projects)
+	var projectId string
+	if options.projectNumber != 0 {
+		projectId = resolveProjectIdByNumber(gqlclient, options.projectNumber)
+	} else {
+		projects := getProjects(gqlclient)
+		if options.projectName != "" {
+			var found bool
+			projectId, found = findProjectByName(projects, options.projectName)
+			if !found {
+				log.Fatalf("Project '%s' not found", options.projectName)
+			}
+		} else {
+			projectId = askOneProjectId(projects)
+		}
+	}
 	fields := getProjectFields(gqlclient, projectId)
 
 	var itemId string

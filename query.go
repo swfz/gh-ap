@@ -60,6 +60,56 @@ func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects 
 	return query.Organization.ProjectsV2.Nodes
 }
 
+func queryUserProjectByNumber(gqlclient api.GQLClient, login string, number int) (string, bool) {
+	var query struct {
+		User struct {
+			ProjectV2 struct {
+				Id string
+			} `graphql:"projectV2(number: $number)"`
+		} `graphql:"user(login: $login)"`
+	}
+	variables := map[string]interface{}{
+		"login":  graphql.String(login),
+		"number": graphql.Int(number),
+	}
+
+	err := gqlclient.Query("UserProjectV2", &query, variables)
+	if err != nil {
+		return "", false
+	}
+
+	if query.User.ProjectV2.Id == "" {
+		return "", false
+	}
+
+	return query.User.ProjectV2.Id, true
+}
+
+func queryOrganizationProjectByNumber(gqlclient api.GQLClient, owner string, number int) (string, bool) {
+	var query struct {
+		Organization struct {
+			ProjectV2 struct {
+				Id string
+			} `graphql:"projectV2(number: $number)"`
+		} `graphql:"organization(login: $login)"`
+	}
+	variables := map[string]interface{}{
+		"login":  graphql.String(owner),
+		"number": graphql.Int(number),
+	}
+
+	err := gqlclient.Query("OrgProjectV2", &query, variables)
+	if err != nil {
+		return "", false
+	}
+
+	if query.Organization.ProjectV2.Id == "" {
+		return "", false
+	}
+
+	return query.Organization.ProjectV2.Id, true
+}
+
 func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) []FieldType {
 	var query struct {
 		Node struct {

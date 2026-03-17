@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	graphql "github.com/cli/shurcooL-graphql"
 	"testing"
 )
@@ -65,6 +66,110 @@ func TestQueryOrganizationProjects(t *testing.T) {
 	if projects[0].Title != "Org Project" || projects[0].Id != "org-proj-1" {
 		t.Errorf("unexpected project: %+v", projects[0])
 	}
+}
+
+func TestQueryUserProjectByNumber(t *testing.T) {
+	t.Run("プロジェクトが見つかる", func(t *testing.T) {
+		client := &mockGQLClient{
+			queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+				setNestedField(query, "User.ProjectV2.Id", "PVT_kwHOAxxxxx")
+				return nil
+			},
+		}
+
+		id, found := queryUserProjectByNumber(client, "testuser", 1)
+
+		assertQueryCall(t, client, 0, "UserProjectV2")
+		assertVariable(t, client.queryCalls[0].Variables, "login", graphql.String("testuser"))
+		assertVariable(t, client.queryCalls[0].Variables, "number", graphql.Int(1))
+
+		if !found {
+			t.Error("expected found to be true")
+		}
+		if id != "PVT_kwHOAxxxxx" {
+			t.Errorf("expected id PVT_kwHOAxxxxx, got %s", id)
+		}
+	})
+
+	t.Run("プロジェクトが見つからない（空ID）", func(t *testing.T) {
+		client := &mockGQLClient{
+			queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+				return nil
+			},
+		}
+
+		_, found := queryUserProjectByNumber(client, "testuser", 999)
+
+		if found {
+			t.Error("expected found to be false")
+		}
+	})
+
+	t.Run("クエリエラー", func(t *testing.T) {
+		client := &mockGQLClient{
+			queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+				return fmt.Errorf("query error")
+			},
+		}
+
+		_, found := queryUserProjectByNumber(client, "testuser", 1)
+
+		if found {
+			t.Error("expected found to be false")
+		}
+	})
+}
+
+func TestQueryOrganizationProjectByNumber(t *testing.T) {
+	t.Run("プロジェクトが見つかる", func(t *testing.T) {
+		client := &mockGQLClient{
+			queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+				setNestedField(query, "Organization.ProjectV2.Id", "PVT_kwHOByyyyy")
+				return nil
+			},
+		}
+
+		id, found := queryOrganizationProjectByNumber(client, "myorg", 2)
+
+		assertQueryCall(t, client, 0, "OrgProjectV2")
+		assertVariable(t, client.queryCalls[0].Variables, "login", graphql.String("myorg"))
+		assertVariable(t, client.queryCalls[0].Variables, "number", graphql.Int(2))
+
+		if !found {
+			t.Error("expected found to be true")
+		}
+		if id != "PVT_kwHOByyyyy" {
+			t.Errorf("expected id PVT_kwHOByyyyy, got %s", id)
+		}
+	})
+
+	t.Run("プロジェクトが見つからない（空ID）", func(t *testing.T) {
+		client := &mockGQLClient{
+			queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+				return nil
+			},
+		}
+
+		_, found := queryOrganizationProjectByNumber(client, "myorg", 999)
+
+		if found {
+			t.Error("expected found to be false")
+		}
+	})
+
+	t.Run("クエリエラー", func(t *testing.T) {
+		client := &mockGQLClient{
+			queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+				return fmt.Errorf("query error")
+			},
+		}
+
+		_, found := queryOrganizationProjectByNumber(client, "myorg", 2)
+
+		if found {
+			t.Error("expected found to be false")
+		}
+	})
 }
 
 func TestQueryProjectFieldTypes(t *testing.T) {

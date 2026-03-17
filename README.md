@@ -18,6 +18,10 @@ gh ap --help
         Issue Number
   -pr int
         PullRequest Number
+  -project string
+        Project Name
+  -project-id int
+        Project Number (the number shown in the project URL)
 ```
 
 - Specified Issue Number(Optional)
@@ -31,6 +35,20 @@ gh ap -issue ${issueNumber}
 ```bash
 gh ap -pr ${pullRequestNumber}
 ```
+
+- Specified Project Name(Optional)
+
+```bash
+gh ap -project "My Project"
+```
+
+- Specified Project Number(Optional)
+
+```bash
+gh ap -project-id 1
+```
+
+Note: `-project` and `-project-id` cannot be used together.
 
 - Specified Field Values(Optional)
 

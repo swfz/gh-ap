@@ -1,12 +1,11 @@
 package main
 
 import (
-	"github.com/cli/go-gh/pkg/api"
 	graphql "github.com/cli/shurcooL-graphql"
 	"log"
 )
 
-func queryUserProjects(gqlclient api.GQLClient, login string) (projects []struct {
+func queryUserProjects(gqlclient GQLClient, login string) (projects []struct {
 	Title string
 	Id    string
 }) {
@@ -33,7 +32,7 @@ func queryUserProjects(gqlclient api.GQLClient, login string) (projects []struct
 	return query.User.ProjectsV2.Nodes
 }
 
-func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects []struct {
+func queryOrganizationProjects(gqlclient GQLClient, owner string) (projects []struct {
 	Title string
 	Id    string
 }) {
@@ -60,7 +59,7 @@ func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects 
 	return query.Organization.ProjectsV2.Nodes
 }
 
-func queryUserProjectByNumber(gqlclient api.GQLClient, login string, number int) (string, bool) {
+func queryUserProjectByNumber(gqlclient GQLClient, login string, number int) (string, bool) {
 	var query struct {
 		User struct {
 			ProjectV2 struct {
@@ -85,7 +84,7 @@ func queryUserProjectByNumber(gqlclient api.GQLClient, login string, number int)
 	return query.User.ProjectV2.Id, true
 }
 
-func queryOrganizationProjectByNumber(gqlclient api.GQLClient, owner string, number int) (string, bool) {
+func queryOrganizationProjectByNumber(gqlclient GQLClient, owner string, number int) (string, bool) {
 	var query struct {
 		Organization struct {
 			ProjectV2 struct {
@@ -110,7 +109,7 @@ func queryOrganizationProjectByNumber(gqlclient api.GQLClient, owner string, num
 	return query.Organization.ProjectV2.Id, true
 }
 
-func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) []FieldType {
+func queryProjectFieldTypes(gqlclient GQLClient, projectId string) []FieldType {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
@@ -149,7 +148,7 @@ func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) []FieldTy
 	return fieldTypes
 }
 
-func queryProjectField(gqlclient api.GQLClient, projectId string) []ProjectFieldNode {
+func queryProjectField(gqlclient GQLClient, projectId string) []ProjectFieldNode {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {

@@ -3,15 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/cli/go-gh"
-	"github.com/cli/go-gh/pkg/api"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"log"
 	"strconv"
 	"strings"
 )
 
-func getProjects(gqlclient api.GQLClient) []Project {
-	restClient, err := gh.RESTClient(nil)
+func getProjects(gqlclient GQLClient) []Project {
+	restClient, err := api.DefaultRESTClient()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -89,8 +88,8 @@ func findOptionByName(options []Option, name string) (Option, bool) {
 	return Option{}, false
 }
 
-func resolveProjectIdByNumber(gqlclient api.GQLClient, number int) string {
-	restClient, err := gh.RESTClient(nil)
+func resolveProjectIdByNumber(gqlclient GQLClient, number int) string {
+	restClient, err := api.DefaultRESTClient()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -145,7 +144,7 @@ func main() {
 		log.Fatal("-project and -project-id cannot be used together")
 	}
 
-	gqlclient, err := gh.GQLClient(nil)
+	gqlclient, err := api.DefaultGraphQLClient()
 	if err != nil {
 		log.Fatal(err)
 	}

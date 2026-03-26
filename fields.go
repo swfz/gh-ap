@@ -1,6 +1,5 @@
 package main
 
-import "github.com/cli/go-gh/pkg/api"
 
 func buildProjectFieldOptions(nodes []ProjectFieldNode) []ProjectField {
 	var fieldOptions []ProjectField
@@ -81,12 +80,12 @@ func mergeFieldsWithOptions(fieldOptions []ProjectField, fieldTypes []FieldType)
 	return fields
 }
 
-func getProjectFieldOptions(gqlclient api.GQLClient, projectId string) []ProjectField {
+func getProjectFieldOptions(gqlclient GQLClient, projectId string) []ProjectField {
 	nodes := queryProjectField(gqlclient, projectId)
 	return buildProjectFieldOptions(nodes)
 }
 
-func getProjectFields(gqlclient api.GQLClient, projectId string) []ProjectField {
+func getProjectFields(gqlclient GQLClient, projectId string) []ProjectField {
 	fieldOptions := getProjectFieldOptions(gqlclient, projectId)
 	fieldTypes := queryProjectFieldTypes(gqlclient, projectId)
 	return mergeFieldsWithOptions(fieldOptions, fieldTypes)

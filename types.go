@@ -2,6 +2,12 @@ package main
 
 import "github.com/shurcooL/githubv4"
 
+// GQLClient is an interface for GraphQL client operations, used for testability.
+type GQLClient interface {
+	Query(name string, q interface{}, variables map[string]interface{}) error
+	Mutate(name string, m interface{}, variables map[string]interface{}) error
+}
+
 type Project struct {
 	Title string
 	Id    string

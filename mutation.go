@@ -2,12 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/cli/go-gh/pkg/api"
 	graphql "github.com/cli/shurcooL-graphql"
 	"log"
 )
 
-func updateDateProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+func updateDateProjectField(gqlclient GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
 	b := []byte(`{"date":"` + fieldValue + `T00:00:00Z"}`)
 	var v NamedDateValue
 	if err := json.Unmarshal(b, &v); err != nil {
@@ -32,7 +31,7 @@ func updateDateProjectField(gqlclient api.GQLClient, projectId string, itemId st
 	}
 }
 
-func updateIterationProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+func updateIterationProjectField(gqlclient GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
 	var mutation struct {
 		UpdateProjectV2ItemFieldValue struct {
 			ClientMutationID string
@@ -51,7 +50,7 @@ func updateIterationProjectField(gqlclient api.GQLClient, projectId string, item
 	}
 }
 
-func updateSingleSelectProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+func updateSingleSelectProjectField(gqlclient GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
 	var mutation struct {
 		UpdateProjectV2ItemFieldValue struct {
 			ClientMutationID string
@@ -70,7 +69,7 @@ func updateSingleSelectProjectField(gqlclient api.GQLClient, projectId string, i
 	}
 }
 
-func updateNumberProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue float64) {
+func updateNumberProjectField(gqlclient GQLClient, projectId string, itemId string, fieldId string, fieldValue float64) {
 	var mutation struct {
 		UpdateProjectV2ItemFieldValue struct {
 			ClientMutationID string
@@ -89,7 +88,7 @@ func updateNumberProjectField(gqlclient api.GQLClient, projectId string, itemId 
 	}
 }
 
-func updateTextProjectField(gqlclient api.GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
+func updateTextProjectField(gqlclient GQLClient, projectId string, itemId string, fieldId string, fieldValue string) {
 	var mutation struct {
 		UpdateProjectV2ItemFieldValue struct {
 			ClientMutationID string
@@ -108,7 +107,7 @@ func updateTextProjectField(gqlclient api.GQLClient, projectId string, itemId st
 	}
 }
 
-func addProject(gqlclient api.GQLClient, projectId string, contentId string) (itemId string) {
+func addProject(gqlclient GQLClient, projectId string, contentId string) (itemId string) {
 	var addProjectMutation struct {
 		AddProjectV2ItemById struct {
 			Item struct {

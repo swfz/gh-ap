@@ -1,12 +1,11 @@
 package main
 
 import (
-	"github.com/cli/go-gh/pkg/api"
 	graphql "github.com/cli/shurcooL-graphql"
 	"log"
 )
 
-func queryUserProjects(gqlclient api.GQLClient, login string) (projects []struct {
+func queryUserProjects(gqlclient GQLClient, login string) (projects []struct {
 	Title string
 	Id    string
 }) {
@@ -33,7 +32,7 @@ func queryUserProjects(gqlclient api.GQLClient, login string) (projects []struct
 	return query.User.ProjectsV2.Nodes
 }
 
-func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects []struct {
+func queryOrganizationProjects(gqlclient GQLClient, owner string) (projects []struct {
 	Title string
 	Id    string
 }) {
@@ -60,11 +59,57 @@ func queryOrganizationProjects(gqlclient api.GQLClient, owner string) (projects 
 	return query.Organization.ProjectsV2.Nodes
 }
 
-func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTypes []struct {
-	Id       string
-	Name     string
-	DataType string
-}) {
+func queryUserProjectByNumber(gqlclient GQLClient, login string, number int) (string, bool) {
+	var query struct {
+		User struct {
+			ProjectV2 struct {
+				Id string
+			} `graphql:"projectV2(number: $number)"`
+		} `graphql:"user(login: $login)"`
+	}
+	variables := map[string]interface{}{
+		"login":  graphql.String(login),
+		"number": graphql.Int(number),
+	}
+
+	err := gqlclient.Query("UserProjectV2", &query, variables)
+	if err != nil {
+		return "", false
+	}
+
+	if query.User.ProjectV2.Id == "" {
+		return "", false
+	}
+
+	return query.User.ProjectV2.Id, true
+}
+
+func queryOrganizationProjectByNumber(gqlclient GQLClient, owner string, number int) (string, bool) {
+	var query struct {
+		Organization struct {
+			ProjectV2 struct {
+				Id string
+			} `graphql:"projectV2(number: $number)"`
+		} `graphql:"organization(login: $login)"`
+	}
+	variables := map[string]interface{}{
+		"login":  graphql.String(owner),
+		"number": graphql.Int(number),
+	}
+
+	err := gqlclient.Query("OrgProjectV2", &query, variables)
+	if err != nil {
+		return "", false
+	}
+
+	if query.Organization.ProjectV2.Id == "" {
+		return "", false
+	}
+
+	return query.Organization.ProjectV2.Id, true
+}
+
+func queryProjectFieldTypes(gqlclient GQLClient, projectId string) []FieldType {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
@@ -91,64 +136,24 @@ func queryProjectFieldTypes(gqlclient api.GQLClient, projectId string) (fieldTyp
 		log.Fatal(err)
 	}
 
-	nodes := len(query.Node.ProjectV2.Fields.Nodes)
-	fieldTypes = make([]struct {
-		Id       string
-		Name     string
-		DataType string
-	}, nodes)
-
+	fieldTypes := make([]FieldType, len(query.Node.ProjectV2.Fields.Nodes))
 	for i, node := range query.Node.ProjectV2.Fields.Nodes {
-		fieldTypes[i] = node.ProjectV2FieldCommon
+		fieldTypes[i] = FieldType{
+			Id:       node.ProjectV2FieldCommon.Id,
+			Name:     node.ProjectV2FieldCommon.Name,
+			DataType: node.ProjectV2FieldCommon.DataType,
+		}
 	}
 
 	return fieldTypes
 }
 
-func queryProjectField(gqlclient api.GQLClient, projectId string) []struct {
-	ProjectV2IterationField struct {
-		Id            string
-		Name          string
-		Configuration struct {
-			Iterations []struct {
-				StartDate string
-				Id        string
-			}
-		}
-	} `graphql:"... on ProjectV2IterationField"`
-	ProjectV2SingleSelectField struct {
-		Id      string
-		Name    string
-		Options []struct {
-			Id   string
-			Name string
-		}
-	} `graphql:"... on ProjectV2SingleSelectField"`
-} {
+func queryProjectField(gqlclient GQLClient, projectId string) []ProjectFieldNode {
 	var query struct {
 		Node struct {
 			ProjectV2 struct {
 				Fields struct {
-					Nodes []struct {
-						ProjectV2IterationField struct {
-							Id            string
-							Name          string
-							Configuration struct {
-								Iterations []struct {
-									StartDate string
-									Id        string
-								}
-							}
-						} `graphql:"... on ProjectV2IterationField"`
-						ProjectV2SingleSelectField struct {
-							Id      string
-							Name    string
-							Options []struct {
-								Id   string
-								Name string
-							}
-						} `graphql:"... on ProjectV2SingleSelectField"`
-					} `graphql:"nodes"`
+					Nodes []ProjectFieldNode `graphql:"nodes"`
 				} `graphql:"fields(first: $number)"`
 			} `graphql:"... on ProjectV2"`
 		} `graphql:"node(id: $projectId)"`

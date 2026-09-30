@@ -35,6 +35,7 @@ All code is in `package main` with no subdirectories (aside from `sandbox/` whic
 | `query.go` | GraphQL queries: user/org projects, project fields, field types |
 | `mutation.go` | GraphQL mutations: add item to project, update field values (text/date/number/select/iteration) |
 | `survey.go` | Interactive prompts using `survey/v2` for project/content/field selection |
+| `summary.go` | Builds and prints the project item summary after assignment |
 | `fields.go` | Merges field type info with field options (single-select, iteration) |
 | `types.go` | Shared struct definitions (Project, Content, Option, ProjectField, Repository) |
 
@@ -53,6 +54,7 @@ All code is in `package main` with no subdirectories (aside from `sandbox/` whic
 4. User selects content type (Current PR / PR / Issue) or uses `-issue`/`-pr` flags
 5. Add the content to the project via `addProjectV2ItemById` mutation
 6. For each custom field, use CLI `-field` value if provided, otherwise prompt user for input, and update via `updateProjectV2ItemFieldValue` mutation
+7. Re-fetch the project item and print its linked project, content and field values (`summary.go`)
 
 ## Release
 

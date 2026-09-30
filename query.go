@@ -171,3 +171,23 @@ func queryProjectField(gqlclient GQLClient, projectId string) []ProjectFieldNode
 
 	return query.Node.ProjectV2.Fields.Nodes
 }
+
+func queryProjectItem(gqlclient GQLClient, itemId string) ProjectItemNode {
+	var query struct {
+		Node struct {
+			ProjectV2Item ProjectItemNode `graphql:"... on ProjectV2Item"`
+		} `graphql:"node(id: $itemId)"`
+	}
+
+	variables := map[string]interface{}{
+		"itemId": graphql.ID(itemId),
+		"number": graphql.Int(50),
+	}
+
+	err := gqlclient.Query("ProjectItem", &query, variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return query.Node.ProjectV2Item
+}

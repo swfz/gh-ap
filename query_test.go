@@ -310,3 +310,27 @@ func TestQueryProjectField(t *testing.T) {
 		t.Errorf("node[1] iteration[0]: got %+v", iters[0])
 	}
 }
+
+func TestQueryProjectItem(t *testing.T) {
+	client := &mockGQLClient{
+		queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+			setNestedField(query, "Node.ProjectV2Item.Project.Title", "individual-project")
+			setNestedField(query, "Node.ProjectV2Item.Content.Typename", "Issue")
+			setNestedField(query, "Node.ProjectV2Item.Content.Issue", ContentSummary{Number: 7, Title: "bug", Url: "https://github.com/swfz/repo/issues/7"})
+			return nil
+		},
+	}
+
+	item := queryProjectItem(client, "item-1")
+
+	assertQueryCall(t, client, 0, "ProjectItem")
+	assertVariable(t, client.queryCalls[0].Variables, "itemId", graphql.ID("item-1"))
+	assertVariable(t, client.queryCalls[0].Variables, "number", graphql.Int(50))
+
+	if item.Project.Title != "individual-project" {
+		t.Errorf("project title: got %q", item.Project.Title)
+	}
+	if item.Content.Typename != "Issue" || item.Content.Issue.Number != 7 {
+		t.Errorf("unexpected content: %+v", item.Content)
+	}
+}

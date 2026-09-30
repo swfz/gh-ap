@@ -60,6 +60,21 @@ gh ap -issue 123 -field "Status=Done" -field "Priority=High"
 
 Supported field types: Text, Date(`YYYY-MM-DD`), Number, Single Select, Iteration
 
+### Output
+
+After adding the item and updating fields, the current state of the project item is printed.
+
+```
+Project: individual-project (#2) https://github.com/users/swfz/projects/2
+Item: PullRequest #41 feat: something https://github.com/swfz/repo/pull/41
+Fields:
+  Title: feat: something
+  Status: Review
+  Point: 1
+  Month: 2026-10-01
+  Iteration: 2026-10 (2026-10-01)
+```
+
 ## Demo
 
 ![demo](demo.gif)

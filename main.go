@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -252,4 +253,6 @@ func main() {
 			}
 		}
 	}
+
+	printItemSummary(os.Stdout, buildItemSummary(queryProjectItem(gqlclient, itemId)))
 }

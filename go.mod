@@ -1,6 +1,6 @@
 module github.com/swfz/gh-ap
 
-go 1.25.0
+go 1.26.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -25,11 +25,11 @@ require (
 	github.com/shurcooL/graphql v0.0.0-20220606043923-3cf50f8a0a29 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/thlib/go-timezone-local v0.0.8 // indirect
-	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/term v0.45.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/term v0.46.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

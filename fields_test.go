@@ -1,7 +1,10 @@
 package main
 
 import (
+	"reflect"
 	"testing"
+
+	graphql "github.com/cli/shurcooL-graphql"
 )
 
 func TestBuildProjectFieldOptions(t *testing.T) {
@@ -499,5 +502,63 @@ func assertOptions(t *testing.T, fieldIdx int, got, want []Option) {
 		if got[j].Id != want[j].Id || got[j].Name != want[j].Name {
 			t.Errorf("[%d] Options[%d]: got %+v, want %+v", fieldIdx, j, got[j], want[j])
 		}
+	}
+}
+
+func TestGetProjectFields(t *testing.T) {
+	client := &mockGQLClient{
+		queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+			switch name {
+			case "Fields":
+				nodes := []ProjectFieldNode{
+					{
+						ProjectV2SingleSelectField: struct {
+							Id      string
+							Name    string
+							Options []SingleSelectOption
+						}{
+							Id:      "f-status",
+							Name:    "Status",
+							Options: []SingleSelectOption{{Id: "opt-todo", Name: "Todo"}, {Id: "opt-done", Name: "Done"}},
+						},
+					},
+				}
+				setNestedField(query, "Node.ProjectV2.Fields.Nodes", nodes)
+			case "FieldTypes":
+				type fieldCommon struct {
+					Id       string
+					Name     string
+					DataType string
+				}
+				type node struct {
+					ProjectV2FieldCommon fieldCommon `graphql:"... on ProjectV2FieldCommon"`
+				}
+				nodes := []node{
+					{ProjectV2FieldCommon: fieldCommon{Id: "f-note", Name: "Note", DataType: "TEXT"}},
+					{ProjectV2FieldCommon: fieldCommon{Id: "f-status", Name: "Status", DataType: "SINGLE_SELECT"}},
+				}
+				setNestedField(query, "Node.ProjectV2.Fields.Nodes", nodes)
+			}
+			return nil
+		},
+	}
+
+	fields := getProjectFields(client, "proj-1")
+
+	assertQueryCall(t, client, 0, "Fields")
+	assertQueryCall(t, client, 1, "FieldTypes")
+	assertVariable(t, client.queryCalls[0].Variables, "projectId", graphql.ID("proj-1"))
+	assertVariable(t, client.queryCalls[1].Variables, "projectId", graphql.ID("proj-1"))
+
+	want := []ProjectField{
+		{Id: "f-note", Name: "Note", DataType: "TEXT", Options: []Option{}},
+		{Id: "f-status", Name: "Status", DataType: "SINGLE_SELECT", Options: []Option{
+			{Id: "Skip", Name: "Skip This Question."},
+			{Id: "opt-todo", Name: "Todo"},
+			{Id: "opt-done", Name: "Done"},
+		}},
+	}
+	if !reflect.DeepEqual(fields, want) {
+		t.Errorf("got %+v, want %+v", fields, want)
 	}
 }

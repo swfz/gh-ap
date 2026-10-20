@@ -22,6 +22,9 @@ gh ap -issue 123 -field "Status=Done" -field "Priority=High"
 
 # Run tests
 go test ./...
+
+# Lint (config: .golangci.yml)
+golangci-lint run ./...
 ```
 
 ## Architecture

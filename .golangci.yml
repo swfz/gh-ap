@@ -1,0 +1,38 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        # サマリーは標準出力への表示のみで、書き込み失敗時に呼び出し元で取れる対処がないため
+        - fmt.Fprintf
+        - fmt.Fprintln
+  exclusions:
+    paths:
+      # GraphQL の動作確認用スクリプト置き場。ビルド・テスト対象外
+      - _sandbox
+    rules:
+      # 対話プロンプトのエラー処理は survey.go のロジック切り出し(#55)で扱う
+      - path: survey.go
+        linters:
+          - errcheck
+        text: survey.AskOne
+      # バリデーションのエラー文はプロンプト上にそのまま表示される文言のため、句読点を含めて維持する
+      - path: survey.go
+        linters:
+          - staticcheck
+        text: ST1005
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    paths:
+      - _sandbox

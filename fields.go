@@ -1,6 +1,5 @@
 package main
 
-
 func buildProjectFieldOptions(nodes []ProjectFieldNode) []ProjectField {
 	var fieldOptions []ProjectField
 	for _, node := range nodes {
@@ -8,11 +7,7 @@ func buildProjectFieldOptions(nodes []ProjectFieldNode) []ProjectField {
 			if len(node.ProjectV2SingleSelectField.Options) > 0 {
 				var options []Option
 				for _, opt := range node.ProjectV2SingleSelectField.Options {
-					option := Option{
-						Id:   opt.Id,
-						Name: opt.Name,
-					}
-					options = append(options, option)
+					options = append(options, Option(opt))
 				}
 
 				field := ProjectField{

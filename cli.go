@@ -6,11 +6,17 @@ import (
 	"log"
 )
 
+// テストで差し替えるためのパッケージ変数
+var (
+	ghExec   = gh.Exec
+	logFatal = log.Fatal
+)
+
 func ghRepository() Repository {
 	args := []string{"repo", "view", "--json", "name,owner,isInOrganization"}
-	stdOut, _, err := gh.Exec(args...)
+	stdOut, _, err := ghExec(args...)
 	if err != nil {
-		log.Fatal(err)
+		logFatal(err)
 	}
 	var repository Repository
 	if err := json.Unmarshal(stdOut.Bytes(), &repository); err != nil {
@@ -22,9 +28,9 @@ func ghRepository() Repository {
 
 func ghCurrentPullRequest() Content {
 	args := []string{"pr", "view", "--json", "id,number,title"}
-	stdOut, _, err := gh.Exec(args...)
+	stdOut, _, err := ghExec(args...)
 	if err != nil {
-		log.Fatal(err)
+		logFatal(err)
 	}
 
 	var currentPR Content
@@ -43,9 +49,9 @@ func ghContent(contentType string, number string) Content {
 		subCommand = "pr"
 	}
 	args := []string{subCommand, "view", number, "--json", "id,number,title"}
-	stdOut, _, err := gh.Exec(args...)
+	stdOut, _, err := ghExec(args...)
 	if err != nil {
-		log.Fatal("Error: not found " + contentType)
+		logFatal("Error: not found " + contentType)
 	}
 	var content Content
 	if err := json.Unmarshal(stdOut.Bytes(), &content); err != nil {
@@ -63,9 +69,9 @@ func ghContentList(contentType string) []Content {
 		subCommand = "pr"
 	}
 	args := []string{subCommand, "list", "--limit", "50", "--json", "id,number,title"}
-	stdOut, _, err := gh.Exec(args...)
+	stdOut, _, err := ghExec(args...)
 	if err != nil {
-		log.Fatal(err)
+		logFatal(err)
 	}
 	var contents []Content
 

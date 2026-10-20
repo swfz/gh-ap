@@ -6,9 +6,9 @@ import (
 
 func TestBuildProjectFieldOptions(t *testing.T) {
 	tests := []struct {
-		name   string
-		nodes  []ProjectFieldNode
-		want   []ProjectField
+		name  string
+		nodes []ProjectFieldNode
+		want  []ProjectField
 	}{
 		{
 			name:  "空のノードでは空を返す",

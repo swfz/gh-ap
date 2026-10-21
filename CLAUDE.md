@@ -27,6 +27,8 @@ go test ./...
 golangci-lint run ./...
 ```
 
+Pre-commit hooks are defined in `lefthook.yml` (gofmt / go vet / golangci-lint). Run `lefthook install` once after cloning to enable them (without lefthook: `mise x lefthook@latest -- lefthook install`).
+
 ## Architecture
 
 All code is in `package main` with no subdirectories (aside from `sandbox/` which contains standalone GraphQL exploration scripts).

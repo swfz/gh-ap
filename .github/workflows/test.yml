@@ -12,6 +12,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # カバレッジ(statements)の下限。下回ったら CI を落とす
+      COVERAGE_MIN: 70
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -21,4 +24,9 @@ jobs:
         with:
           version: v2.14.0
       - run: go build .
-      - run: go test -v -count=1 ./...
+      - run: go test -v -count=1 -coverprofile=coverage.out ./...
+      - name: Check coverage
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/{gsub("%","",$3); print $3}')
+          echo "coverage: ${total}% (min: ${COVERAGE_MIN}%)"
+          awk -v t="$total" -v m="$COVERAGE_MIN" 'BEGIN{exit !(t>=m)}' || { echo "::error::coverage ${total}% is below ${COVERAGE_MIN}%"; exit 1; }

@@ -23,6 +23,9 @@ gh ap -issue 123 -field "Status=Done" -field "Priority=High"
 # Run tests
 go test ./...
 
+# Coverage (CI fails if total < 70%; threshold is COVERAGE_MIN in .github/workflows/test.yml)
+go test -count=1 -coverprofile=coverage.out ./... && go tool cover -func=coverage.out | tail -1
+
 # Lint (config: .golangci.yml)
 golangci-lint run ./...
 ```

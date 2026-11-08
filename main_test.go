@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"reflect"
 	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 
 	graphql "github.com/cli/shurcooL-graphql"
@@ -571,7 +574,7 @@ func TestApplyFieldValues(t *testing.T) {
 		prompter := fieldPrompter{
 			askText:   func(string) string { return "" },
 			askDate:   func(string) string { return "" },
-			askNumber: func(string) float64 { t.Error("askNumber should not be called"); return 0 },
+			askNumber: func(string) float64 { return 0 },
 			askSelect: func(string, []Option) string { return "Skip" },
 		}
 		fields := []ProjectField{applyFieldValuesFields[0], applyFieldValuesFields[1], applyFieldValuesFields[3], applyFieldValuesFields[4]}
@@ -583,6 +586,231 @@ func TestApplyFieldValues(t *testing.T) {
 		}
 		if len(client.mutateCalls) != 0 {
 			t.Errorf("expected no mutation, got %d", len(client.mutateCalls))
+		}
+	})
+}
+
+// runGQLClient は run のフローで呼ばれる query / mutation に最小限の応答を返す
+func runGQLClient(userProjectId string) *mockGQLClient {
+	return &mockGQLClient{
+		queryFunc: func(name string, query interface{}, variables map[string]interface{}) error {
+			type project struct {
+				Title string
+				Id    string
+			}
+			type fieldCommon struct {
+				Id       string
+				Name     string
+				DataType string
+			}
+			type fieldTypeNode struct {
+				ProjectV2FieldCommon fieldCommon `graphql:"... on ProjectV2FieldCommon"`
+			}
+			switch name {
+			case "UserProjectV2":
+				if userProjectId != "" {
+					setNestedField(query, "User.ProjectV2.Id", userProjectId)
+				}
+			case "ProjectsV2":
+				setNestedField(query, "User.ProjectsV2.Nodes", []project{{Title: "My Project", Id: "PVT_named"}})
+			case "FieldTypes":
+				setNestedField(query, "Node.ProjectV2.Fields.Nodes", []fieldTypeNode{
+					{ProjectV2FieldCommon: fieldCommon{Id: "f-note", Name: "Note", DataType: "TEXT"}},
+					{ProjectV2FieldCommon: fieldCommon{Id: "f-point", Name: "Point", DataType: "NUMBER"}},
+				})
+			case "ProjectItem":
+				setNestedField(query, "Node.ProjectV2Item.Project.Title", "My Project")
+			}
+			return nil
+		},
+		mutateFunc: func(name string, mutation interface{}, variables map[string]interface{}) error {
+			if name == "Assign" {
+				setNestedField(mutation, "AddProjectV2ItemById.Item.Id", "item-1")
+			}
+			return nil
+		},
+	}
+}
+
+// fakeGhContent は ghExec を差し替え、view には content を、list には contents を返す
+func fakeGhContent(t *testing.T) *[][]string {
+	t.Helper()
+	var calls [][]string
+	orig := ghExec
+	t.Cleanup(func() { ghExec = orig })
+	ghExec = func(args ...string) (bytes.Buffer, bytes.Buffer, error) {
+		calls = append(calls, args)
+		if len(args) > 1 && args[1] == "list" {
+			return *bytes.NewBufferString(`[{"id":"I_list","number":7,"title":"listed"}]`), bytes.Buffer{}, nil
+		}
+		return *bytes.NewBufferString(`{"id":"CONTENT_ID","number":1,"title":"t"}`), bytes.Buffer{}, nil
+	}
+	return &calls
+}
+
+// noInteractionPrompter はプロジェクト・対象の選択が呼ばれたらテストを失敗させる(フィールドの対話は空回答)
+func noInteractionPrompter(t *testing.T) interactivePrompter {
+	return interactivePrompter{
+		fields: fieldPrompter{
+			askText:   func(string) string { return "" },
+			askDate:   func(string) string { return "" },
+			askNumber: func(string) float64 { return 0 },
+			askSelect: func(string, []Option) string { return "Skip" },
+		},
+		askProject:       func([]Project) string { t.Error("askProject should not be called"); return "" },
+		askContentType:   func([]string) string { t.Error("askContentType should not be called"); return "" },
+		askContentNumber: func(string, []Content) string { t.Error("askContentNumber should not be called"); return "" },
+	}
+}
+
+func fieldsWithPoint() fieldFlags {
+	return fieldFlags{"Note=hello", "Point=3"}
+}
+
+func TestRun(t *testing.T) {
+	repo := func() Repository { return Repository{} }
+
+	t.Run("-project と -project-id を同時に指定するとエラーで API を呼ばない", func(t *testing.T) {
+		client := runGQLClient("PVT_1")
+		rest := &mockRESTClient{login: "testuser"}
+
+		err := run(options{projectName: "My Project", projectNumber: 1}, client, rest, repo, noInteractionPrompter(t), &bytes.Buffer{})
+
+		if err == nil || err.Error() != "-project and -project-id cannot be used together" {
+			t.Errorf("got %v", err)
+		}
+		if len(client.queryCalls) != 0 || len(rest.paths) != 0 {
+			t.Errorf("API should not be called: query=%d rest=%d", len(client.queryCalls), len(rest.paths))
+		}
+	})
+
+	t.Run("-project-id のプロジェクトが見つからなければエラー", func(t *testing.T) {
+		client := runGQLClient("")
+
+		err := run(options{projectNumber: 9, issueNo: 1}, client, &mockRESTClient{login: "testuser"}, repo, noInteractionPrompter(t), &bytes.Buffer{})
+
+		if err == nil || err.Error() != "Project #9 not found" {
+			t.Errorf("got %v", err)
+		}
+		if len(client.mutateCalls) != 0 {
+			t.Errorf("mutation should not be called, got %d", len(client.mutateCalls))
+		}
+	})
+
+	t.Run("-project の名前が見つからなければエラー", func(t *testing.T) {
+		client := runGQLClient("")
+
+		err := run(options{projectName: "Unknown", issueNo: 1}, client, &mockRESTClient{login: "testuser"}, repo, noInteractionPrompter(t), &bytes.Buffer{})
+
+		if err == nil || err.Error() != "Project 'Unknown' not found" {
+			t.Errorf("got %v", err)
+		}
+		if len(client.mutateCalls) != 0 {
+			t.Errorf("mutation should not be called, got %d", len(client.mutateCalls))
+		}
+	})
+
+	t.Run("-issue 指定で Issue を追加し -field を適用してサマリを出力する", func(t *testing.T) {
+		calls := fakeGhContent(t)
+		client := runGQLClient("PVT_1")
+		var out bytes.Buffer
+
+		err := run(options{projectNumber: 1, issueNo: 12, fields: fieldsWithPoint()}, client, &mockRESTClient{login: "testuser"}, repo, noInteractionPrompter(t), &out)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		assertArgs(t, calls, []string{"issue", "view", "12", "--json", "id,number,title"})
+		assertMutateCall(t, client, 0, "Assign")
+		assertVariable(t, client.mutateCalls[0].Variables, "contentId", graphql.ID("CONTENT_ID"))
+		assertVariable(t, client.mutateCalls[0].Variables, "projectId", graphql.ID("PVT_1"))
+		if len(client.mutateCalls) != 3 {
+			t.Fatalf("expected 3 mutate calls (Assign, Note, Point), got %d", len(client.mutateCalls))
+		}
+		assertVariable(t, client.mutateCalls[1].Variables, "itemId", graphql.ID("item-1"))
+		assertVariable(t, client.mutateCalls[1].Variables, "value", graphql.String("hello"))
+		assertVariable(t, client.mutateCalls[2].Variables, "value", graphql.Float(3))
+		if !strings.Contains(out.String(), "My Project") {
+			t.Errorf("summary should contain project title, got %q", out.String())
+		}
+	})
+
+	t.Run("-pr 指定で PR を対象にする", func(t *testing.T) {
+		calls := fakeGhContent(t)
+		client := runGQLClient("PVT_1")
+
+		err := run(options{projectNumber: 1, prNo: 34}, client, &mockRESTClient{login: "testuser"}, repo, noInteractionPrompter(t), &bytes.Buffer{})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		assertArgs(t, calls, []string{"pr", "view", "34", "--json", "id,number,title"})
+		assertMutateCall(t, client, 0, "Assign")
+	})
+
+	t.Run("-project の名前で見つかったプロジェクトに追加する", func(t *testing.T) {
+		fakeGhContent(t)
+		client := runGQLClient("")
+
+		err := run(options{projectName: "My Project", issueNo: 1}, client, &mockRESTClient{login: "testuser"}, repo, noInteractionPrompter(t), &bytes.Buffer{})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		assertVariable(t, client.mutateCalls[0].Variables, "projectId", graphql.ID("PVT_named"))
+	})
+
+	t.Run("-field の値が不正ならエラーを返す", func(t *testing.T) {
+		fakeGhContent(t)
+		client := runGQLClient("PVT_1")
+
+		err := run(options{projectNumber: 1, issueNo: 1, fields: fieldFlags{"Point=abc"}}, client, &mockRESTClient{login: "testuser"}, repo, noInteractionPrompter(t), &bytes.Buffer{})
+
+		if err == nil || err.Error() != "Invalid number value for field Point: abc" {
+			t.Errorf("got %v", err)
+		}
+	})
+
+	t.Run("フラグが無ければプロジェクトと対象を対話で選ぶ", func(t *testing.T) {
+		tests := []struct {
+			name         string
+			selectedType string
+			wantArgs     [][]string
+		}{
+			{name: "Current PullRequest", selectedType: "Current PullRequest", wantArgs: [][]string{{"pr", "view", "--json", "id,number,title"}}},
+			{name: "Issue", selectedType: "Issue", wantArgs: [][]string{
+				{"issue", "list", "--limit", "50", "--json", "id,number,title"},
+				{"issue", "view", "7", "--json", "id,number,title"},
+			}},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				calls := fakeGhContent(t)
+				client := runGQLClient("")
+				p := noInteractionPrompter(t)
+				var gotProjects []Project
+				p.askProject = func(projects []Project) string { gotProjects = projects; return "PVT_selected" }
+				p.askContentType = func([]string) string { return tt.selectedType }
+				p.askContentNumber = func(contentType string, contents []Content) string {
+					if contentType != "Issue" || len(contents) != 1 {
+						t.Errorf("askContentNumber got (%q, %+v)", contentType, contents)
+					}
+					return strconv.Itoa(contents[0].Number)
+				}
+
+				err := run(options{}, client, &mockRESTClient{login: "testuser"}, repo, p, &bytes.Buffer{})
+
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if len(gotProjects) != 1 || gotProjects[0].Id != "PVT_named" {
+					t.Errorf("askProject got %+v", gotProjects)
+				}
+				if !reflect.DeepEqual(*calls, tt.wantArgs) {
+					t.Errorf("gh args: got %v, want %v", *calls, tt.wantArgs)
+				}
+				assertVariable(t, client.mutateCalls[0].Variables, "projectId", graphql.ID("PVT_selected"))
+			})
 		}
 	})
 }

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/cli/go-gh/v2/pkg/api"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -220,83 +222,102 @@ func applyFieldValues(gqlclient GQLClient, projectId string, itemId string, fiel
 	return nil
 }
 
-func main() {
-	var options struct {
-		issueNo       int
-		prNo          int
-		projectName   string
-		projectNumber int
-		fields        fieldFlags
-	}
-	flag.IntVar(&options.issueNo, "issue", 0, "Issue Number")
-	flag.IntVar(&options.prNo, "pr", 0, "PullRequest Number")
-	flag.StringVar(&options.projectName, "project", "", "Project Name")
-	flag.IntVar(&options.projectNumber, "project-id", 0, "Project Number (the number shown in the project URL)")
-	flag.Var(&options.fields, "field", "Field value in 'FieldName=Value' format (can be specified multiple times)")
-	flag.Parse()
+// interactivePrompter は対話で値を尋ねる処理をまとめたもの(テストで差し替える)
+type interactivePrompter struct {
+	fields           fieldPrompter
+	askProject       func(projects []Project) string
+	askContentType   func(itemTypes []string) string
+	askContentNumber func(contentType string, contents []Content) string
+}
 
-	if options.projectName != "" && options.projectNumber != 0 {
-		log.Fatal("-project and -project-id cannot be used together")
-	}
+var surveyInteractivePrompter = interactivePrompter{
+	fields:           surveyPrompter,
+	askProject:       askOneProjectId,
+	askContentType:   askOneContentType,
+	askContentNumber: askContentNumber,
+}
 
-	gqlclient, err := api.DefaultGraphQLClient()
-	if err != nil {
-		log.Fatal(err)
-	}
+type options struct {
+	issueNo       int
+	prNo          int
+	projectName   string
+	projectNumber int
+	fields        fieldFlags
+}
 
-	restClient, err := api.DefaultRESTClient()
-	if err != nil {
-		log.Fatal(err)
+func run(opts options, gqlclient GQLClient, restClient RESTClient, getRepository func() Repository, prompter interactivePrompter, out io.Writer) error {
+	if opts.projectName != "" && opts.projectNumber != 0 {
+		return errors.New("-project and -project-id cannot be used together")
 	}
 
 	var projectId string
-	if options.projectNumber != 0 {
+	if opts.projectNumber != 0 {
 		var found bool
-		projectId, found = resolveProjectIdByNumber(gqlclient, restClient, ghRepository, options.projectNumber)
+		projectId, found = resolveProjectIdByNumber(gqlclient, restClient, getRepository, opts.projectNumber)
 		if !found {
-			log.Fatalf("Project #%d not found", options.projectNumber)
+			return fmt.Errorf("Project #%d not found", opts.projectNumber)
 		}
 	} else {
-		projects := getProjects(gqlclient, restClient, ghRepository)
-		if options.projectName != "" {
+		projects := getProjects(gqlclient, restClient, getRepository)
+		if opts.projectName != "" {
 			var found bool
-			projectId, found = findProjectByName(projects, options.projectName)
+			projectId, found = findProjectByName(projects, opts.projectName)
 			if !found {
-				log.Fatalf("Project '%s' not found", options.projectName)
+				return fmt.Errorf("Project '%s' not found", opts.projectName)
 			}
 		} else {
-			projectId = askOneProjectId(projects)
+			projectId = prompter.askProject(projects)
 		}
 	}
 	fields := getProjectFields(gqlclient, projectId)
 
-	var itemId string
 	var content Content
-
-	if options.issueNo != 0 || options.prNo != 0 {
-		if options.issueNo != 0 {
-			content = ghContent("Issue", strconv.Itoa(options.issueNo))
-		} else {
-			content = ghContent("PullRequest", strconv.Itoa(options.prNo))
-		}
+	if opts.issueNo != 0 {
+		content = ghContent("Issue", strconv.Itoa(opts.issueNo))
+	} else if opts.prNo != 0 {
+		content = ghContent("PullRequest", strconv.Itoa(opts.prNo))
 	} else {
 		itemTypes := []string{"Current PullRequest", "PullRequest", "Issue"}
-		selectedType := askOneContentType(itemTypes)
+		selectedType := prompter.askContentType(itemTypes)
 
 		if selectedType == "Current PullRequest" {
 			content = ghCurrentPullRequest()
 		} else {
 			contentList := ghContentList(selectedType)
-			number := askContentNumber(selectedType, contentList)
+			number := prompter.askContentNumber(selectedType, contentList)
 			content = ghContent(selectedType, number)
 		}
 	}
-	itemId = addProject(gqlclient, projectId, content.Id)
+	itemId := addProject(gqlclient, projectId, content.Id)
 
-	fieldValues := parseFieldFlags(options.fields)
-	if err := applyFieldValues(gqlclient, projectId, itemId, fields, fieldValues, surveyPrompter); err != nil {
+	fieldValues := parseFieldFlags(opts.fields)
+	if err := applyFieldValues(gqlclient, projectId, itemId, fields, fieldValues, prompter.fields); err != nil {
+		return err
+	}
+
+	printItemSummary(out, buildItemSummary(queryProjectItem(gqlclient, itemId)))
+	return nil
+}
+
+func main() {
+	var opts options
+	flag.IntVar(&opts.issueNo, "issue", 0, "Issue Number")
+	flag.IntVar(&opts.prNo, "pr", 0, "PullRequest Number")
+	flag.StringVar(&opts.projectName, "project", "", "Project Name")
+	flag.IntVar(&opts.projectNumber, "project-id", 0, "Project Number (the number shown in the project URL)")
+	flag.Var(&opts.fields, "field", "Field value in 'FieldName=Value' format (can be specified multiple times)")
+	flag.Parse()
+
+	gqlclient, err := api.DefaultGraphQLClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+	restClient, err := api.DefaultRESTClient()
+	if err != nil {
 		log.Fatal(err)
 	}
 
-	printItemSummary(os.Stdout, buildItemSummary(queryProjectItem(gqlclient, itemId)))
+	if err := run(opts, gqlclient, restClient, ghRepository, surveyInteractivePrompter, os.Stdout); err != nil {
+		log.Fatal(err)
+	}
 }
